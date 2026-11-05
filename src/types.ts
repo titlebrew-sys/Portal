@@ -43,6 +43,8 @@ export interface Supplier {
   /** Delivery time written in the email, e.g. "7.30am". */
   deliveryTime: string | null;
   satDeliveryTime: string | null;
+  /** Contact line printed on the LPO, e.g. "Mr. Name +971 ...". Kept in the database, not in code. */
+  lpoContact: string | null;
   sort: number;
 }
 

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useApp } from '../ctx';
 import { Head, MobileWho, aed, parseNum } from '../components';
-import type { Order, OrderLine, Supplier } from '../types';
+import type { Order, OrderLine } from '../types';
+import { LpoDoc } from './Lpo';
 import { fmtNum, plan, type SupplierPlan } from '../lib/ordering';
 import { channelOf, emailSubject, lpoTotals, mailtoLink, orderMessage, whatsappLink } from '../lib/messages';
 import { dubaiClock, fmtLongDate, fmtShortDate } from '../lib/time';
@@ -165,49 +166,5 @@ function SupplierCard({ p, onLpo }: { p: SupplierPlan; onLpo: (id: string) => vo
         </div>
       </div>
     </section>
-  );
-}
-
-/** Printable Local Purchase Order for The Bakery. Print, then "Save as PDF" and attach it. */
-function LpoDoc({ order, onBack }: { order: Order; onBack: () => void }) {
-  const { data, toast } = useApp();
-  const s = data.suppliers.find((x) => x.id === order.supplierId) as Supplier;
-  const t = lpoTotals(order.lines);
-  const delivery = plan(data, order.businessDate).find((p) => p.supplier.id === s.id)?.deliveryDate ?? order.businessDate;
-  const subject = emailSubject(s, delivery, order.lpoNumber);
-  return (
-    <>
-      <div className="head noprint">
-        <div><div className="eyebrow">LPO {order.lpoNumber}</div><h1>{s.name} purchase order</h1>
-          <p className="sub">1. Tap Save as PDF. 2. Open the email. 3. Attach the PDF and send.</p></div>
-        <div className="quiet">
-          <button className="btn" onClick={onBack}>Back to orders</button>
-          <button className="btn primary" onClick={() => window.print()}>Save as PDF</button>
-          <a className="btn" href={mailtoLink(s, subject, order.message)}>Open email</a>
-          <button className="btn" onClick={async () => { try { await navigator.clipboard.writeText(order.message); toast('Email text copied.'); } catch { toast('Select the text to copy it.'); } }}>Copy email text</button>
-        </div>
-      </div>
-      <div className="lpo">
-        <h2>LOCAL PURCHASE ORDER</h2>
-        <div className="meta">
-          <div><b>Title Brew Coffee Shop</b><br />Bay Square, Building 8<br />Business Bay, Dubai</div>
-          <div style={{ textAlign: 'right' }}><b>LPO No. {order.lpoNumber}</b><br />Date: {fmtLongDate(order.businessDate)}<br />Delivery: {fmtLongDate(delivery)}{s.deliveryTime ? `, ${new Date(delivery + 'T00:00:00Z').getUTCDay() === 6 ? s.satDeliveryTime ?? s.deliveryTime : s.deliveryTime}` : ''}</div>
-        </div>
-        <div style={{ marginBottom: 12 }}><b>Supplier:</b> {s.name}</div>
-        <table>
-          <thead><tr><th>#</th><th>Item</th><th className="n">Qty</th><th>Unit</th><th className="n">Unit price</th><th className="n">Amount AED</th></tr></thead>
-          <tbody>
-            {order.lines.map((l, i) => (
-              <tr key={l.ruleId}><td>{i + 1}</td><td>{l.name}</td><td className="n">{fmtNum(l.qty)}</td><td>{l.unit}</td><td className="n">{l.price === null ? '' : l.price.toFixed(2)}</td><td className="n">{l.price === null ? '' : (l.price * l.qty).toFixed(2)}</td></tr>
-            ))}
-            <tr><td colSpan={5} className="n"><b>Subtotal</b></td><td className="n">{t.sub.toFixed(2)}</td></tr>
-            <tr><td colSpan={5} className="n">VAT 5%</td><td className="n">{t.vat.toFixed(2)}</td></tr>
-            <tr><td colSpan={5} className="n"><b>Total</b></td><td className="n"><b>{t.total.toFixed(2)}</b></td></tr>
-          </tbody>
-        </table>
-        {t.missingPrices && <p className="noprint" style={{ color: 'var(--bad)' }}>Some items have no price. Add it on Items and rules.</p>}
-        <p style={{ marginTop: 24 }}>Prepared by {order.sentBy}</p>
-      </div>
-    </>
   );
 }

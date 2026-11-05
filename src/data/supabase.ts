@@ -43,13 +43,13 @@ const supFrom = (r: any): Supplier => ({
   id: r.id, name: r.name, how: r.how, email: r.email, cutoff: r.cutoff, delivery: r.delivery, leadDays: r.lead_days,
   noDeliveryDays: r.no_delivery_days ?? [], openText: r.open_text, closeText: r.close_text, minOrder: num(r.min_order),
   freeDelivery: num(r.free_delivery), notes: r.notes, weekly: r.weekly, usesLpo: r.uses_lpo, deliveryTime: r.delivery_time,
-  satDeliveryTime: r.sat_delivery_time, sort: r.sort,
+  satDeliveryTime: r.sat_delivery_time, lpoContact: r.lpo_contact ?? null, sort: r.sort,
 });
 const supTo = (s: Supplier) => ({
   id: s.id, name: s.name, how: s.how, email: s.email, cutoff: s.cutoff, delivery: s.delivery, lead_days: s.leadDays,
   no_delivery_days: s.noDeliveryDays, open_text: s.openText, close_text: s.closeText, min_order: s.minOrder,
   free_delivery: s.freeDelivery, notes: s.notes, weekly: s.weekly, uses_lpo: s.usesLpo, delivery_time: s.deliveryTime,
-  sat_delivery_time: s.satDeliveryTime, sort: s.sort,
+  sat_delivery_time: s.satDeliveryTime, lpo_contact: s.lpoContact, sort: s.sort,
 });
 const ruleFrom = (r: any): Rule => ({
   id: r.id, supplierId: r.supplier_id, orderItem: r.order_item, countFrom: r.count_from, rule: r.rule, orderUnit: r.order_unit,

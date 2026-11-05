@@ -87,6 +87,9 @@ create table if not exists public.suppliers (
   sort int not null default 0
 );
 
+-- Added later: contact line printed on The Bakery LPO.
+alter table public.suppliers add column if not exists lpo_contact text;
+
 create table if not exists public.rules (
   id text primary key,
   supplier_id text references public.suppliers (id) on delete set null,

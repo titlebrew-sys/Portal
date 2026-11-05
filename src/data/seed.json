@@ -948,6 +948,54 @@
    "hasBatches": false,
    "hasFrozen": false,
    "active": true
+  },
+  {
+   "id": "kit-veggie-sandwich",
+   "area": "Kitchen",
+   "section": "Sandwiches",
+   "name": "Veggie sandwich",
+   "unit": "pcs",
+   "hint": null,
+   "sort": 190,
+   "hasBatches": true,
+   "hasFrozen": false,
+   "active": false
+  },
+  {
+   "id": "kit-asian-sesame-salad",
+   "area": "Kitchen",
+   "section": "Sandwiches",
+   "name": "Asian sesame salad",
+   "unit": "pcs",
+   "hint": null,
+   "sort": 191,
+   "hasBatches": true,
+   "hasFrozen": false,
+   "active": false
+  },
+  {
+   "id": "kit-chicken-kale-salad",
+   "area": "Kitchen",
+   "section": "Sandwiches",
+   "name": "Chicken kale salad",
+   "unit": "pcs",
+   "hint": null,
+   "sort": 192,
+   "hasBatches": true,
+   "hasFrozen": false,
+   "active": false
+  },
+  {
+   "id": "kit-chicken-avocado-salad",
+   "area": "Kitchen",
+   "section": "Sandwiches",
+   "name": "Chicken avocado salad",
+   "unit": "pcs",
+   "hint": null,
+   "sort": 193,
+   "hasBatches": true,
+   "hasFrozen": false,
+   "active": false
   }
  ],
  "suppliers": [
@@ -971,7 +1019,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 0
+   "sort": 0,
+   "lpoContact": null
   },
   {
    "id": "sup-the-bakery",
@@ -993,7 +1042,8 @@
    "usesLpo": true,
    "deliveryTime": "7.30am",
    "satDeliveryTime": "10am",
-   "sort": 1
+   "sort": 1,
+   "lpoContact": null
   },
   {
    "id": "sup-l-s-boutique-bakery",
@@ -1013,7 +1063,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 2
+   "sort": 2,
+   "lpoContact": null
   },
   {
    "id": "sup-safco",
@@ -1033,7 +1084,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 3
+   "sort": 3,
+   "lpoContact": null
   },
   {
    "id": "sup-emirates-snack-food",
@@ -1053,7 +1105,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 4
+   "sort": 4,
+   "lpoContact": null
   },
   {
    "id": "sup-tealand",
@@ -1073,7 +1126,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 5
+   "sort": 5,
+   "lpoContact": null
   },
   {
    "id": "sup-classic-fine-foods",
@@ -1093,7 +1147,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 6
+   "sort": 6,
+   "lpoContact": null
   },
   {
    "id": "sup-global-beverages",
@@ -1113,7 +1168,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 7
+   "sort": 7,
+   "lpoContact": null
   },
   {
    "id": "sup-matcha",
@@ -1133,7 +1189,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 8
+   "sort": 8,
+   "lpoContact": null
   },
   {
    "id": "sup-khotot-al-emdad",
@@ -1153,7 +1210,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 9
+   "sort": 9,
+   "lpoContact": null
   },
   {
    "id": "sup-senor-pepes",
@@ -1173,7 +1231,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 10
+   "sort": 10,
+   "lpoContact": null
   },
   {
    "id": "sup-hotpack",
@@ -1193,7 +1252,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 11
+   "sort": 11,
+   "lpoContact": null
   },
   {
    "id": "sup-dupak",
@@ -1213,7 +1273,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 12
+   "sort": 12,
+   "lpoContact": null
   },
   {
    "id": "sup-new-country-home",
@@ -1233,7 +1294,8 @@
    "usesLpo": false,
    "deliveryTime": null,
    "satDeliveryTime": null,
-   "sort": 13
+   "sort": 13,
+   "lpoContact": null
   }
  ],
  "rules": [
@@ -2699,6 +2761,82 @@
    "price": null,
    "active": true,
    "sort": 576
+  },
+  {
+   "id": "rule-the-bakery-veggie-sandwich",
+   "supplierId": "sup-the-bakery",
+   "orderItem": "Veggie Sandwich",
+   "countFrom": "kit-veggie-sandwich",
+   "rule": "TARGET",
+   "orderUnit": "pcs",
+   "packSize": 1,
+   "estDailyUse": null,
+   "fixedTarget": 2,
+   "satTarget": null,
+   "extraDays": 1,
+   "minLevel": null,
+   "maxLevel": null,
+   "fixedQty": null,
+   "price": 13.4,
+   "active": false,
+   "sort": 90
+  },
+  {
+   "id": "rule-the-bakery-asian-sesame-salad",
+   "supplierId": "sup-the-bakery",
+   "orderItem": "Asian Sesame Salad",
+   "countFrom": "kit-asian-sesame-salad",
+   "rule": "TARGET",
+   "orderUnit": "pcs",
+   "packSize": 1,
+   "estDailyUse": null,
+   "fixedTarget": 2,
+   "satTarget": null,
+   "extraDays": 1,
+   "minLevel": null,
+   "maxLevel": null,
+   "fixedQty": null,
+   "price": 14.9,
+   "active": false,
+   "sort": 91
+  },
+  {
+   "id": "rule-the-bakery-chicken-kale-salad",
+   "supplierId": "sup-the-bakery",
+   "orderItem": "Chicken Kale Salad",
+   "countFrom": "kit-chicken-kale-salad",
+   "rule": "TARGET",
+   "orderUnit": "pcs",
+   "packSize": 1,
+   "estDailyUse": null,
+   "fixedTarget": 2,
+   "satTarget": null,
+   "extraDays": 1,
+   "minLevel": null,
+   "maxLevel": null,
+   "fixedQty": null,
+   "price": 14.9,
+   "active": false,
+   "sort": 92
+  },
+  {
+   "id": "rule-the-bakery-chicken-avocado-salad",
+   "supplierId": "sup-the-bakery",
+   "orderItem": "Chicken Avocado Salad",
+   "countFrom": "kit-chicken-avocado-salad",
+   "rule": "TARGET",
+   "orderUnit": "pcs",
+   "packSize": 1,
+   "estDailyUse": null,
+   "fixedTarget": 2,
+   "satTarget": null,
+   "extraDays": 1,
+   "minLevel": null,
+   "maxLevel": null,
+   "fixedQty": null,
+   "price": 15.6,
+   "active": false,
+   "sort": 93
   }
  ],
  "lpoNext": 557,

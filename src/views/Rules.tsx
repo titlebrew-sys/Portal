@@ -226,6 +226,7 @@ function SupplierForm({ s: start, onSave, onClose }: { s: Supplier; onSave: (s: 
         {text('Message closing', 'closeText', true)}
         {s.usesLpo && text('Delivery time in email', 'deliveryTime')}
         {s.usesLpo && text('Saturday delivery time', 'satDeliveryTime')}
+        {s.usesLpo && text('Contact on the LPO (name and phone)', 'lpoContact')}
         {text('Notes', 'notes', true)}
       </div>
       <div className="quiet">

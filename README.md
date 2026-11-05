@@ -24,6 +24,10 @@ Built with Vite, React and TypeScript. Database and login: Supabase (free tier).
 - **TRACK**: counted only.
 - No-delivery days (Almarai and The Bakery: no Sunday) and lead times are per supplier.
 - **LPO numbers** for The Bakery start at 557 and move on by one each time an LPO is created.
+- **The Bakery LPO** is downloaded as `Title Brew LPO <number>.xlsx`, filled into The Bakery's own Excel format
+  (`src/assets/bakery-lpo-template.xlsx`): all 15 items in their order with codes, 0 when not ordered,
+  price from the rules, Total = price x qty, VAT 5%, Net = Total + VAT. The contact line is set on
+  Items and rules > Suppliers > The Bakery and is stored in the database, not in this public repo.
 
 The starting min/max/pack-size numbers in `src/data/seed.json` were set so the suggestions match the prototype on 5 Nov 2026. Check them on the Items and rules screen.
 

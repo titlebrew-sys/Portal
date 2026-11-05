@@ -192,3 +192,28 @@ tr.clickable:hover td { background: var(--sunk); }
 .mobile-only { display: none; }
 @media (max-width: 820px) { .mobile-only { display: block; } }
 @media (max-width: 820px) { .savebar { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); } }
+
+/* The Bakery LPO: mirrors the Excel sheet (always on white, like paper) */
+.xl-wrap { overflow-x: auto; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.xl { border-collapse: collapse; width: 100%; min-width: 760px; table-layout: fixed; color: #000; font-family: Arial, sans-serif; font-size: 12px; }
+.xl td { border: 0; padding: 4px 6px; vertical-align: middle; color: #000; }
+.xl-title td { height: 96px; text-align: center; font: 700 64px/1 'Bricolage Grotesque', Arial, sans-serif; letter-spacing: 0.02em; border: 1px solid #000; background: #fff; }
+.xl-gap td { height: 18px; }
+.xl-head td { height: 32px; }
+.xl .b10 { font-weight: 700; font-size: 13px; }
+.xl .b9 { font-weight: 700; font-size: 12px; }
+.xl .red { font-weight: 700; font-size: 15px; color: #f00; }
+.xl-cols td { background: #5f5f5f; color: #fff; font-weight: 700; font-size: 14px; text-align: center; border: 1px solid #000; white-space: normal; }
+.xl-item td { border: 1px solid #000; height: 68px; }
+.xl-item .code { text-align: center; font-weight: 700; font-size: 13px; }
+.xl-item .name { font-family: Calibri, Carlito, Arial, sans-serif; }
+.xl-item .name b { font-size: 14px; }
+.xl-item .name .size { font-size: 12px; }
+.xl-item .name span { display: block; font-size: 11px; margin-top: 4px; }
+.xl-item .num { text-align: center; font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
+.xl-item.on td { background: #fffbe6; }
+.xl-total td { background: #bfbfbf; font-weight: 700; font-size: 19px; text-align: center; border: 1px solid #000; height: 40px; }
+@media print {
+  .xl-wrap { border: 0; padding: 0; overflow: visible; }
+  .xl-item.on td { background: #fff; }
+}
