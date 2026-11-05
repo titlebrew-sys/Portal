@@ -47,7 +47,8 @@ export function salesFromLoyverse(text: string): SalesRow[] {
   const merged = new Map<string, SalesRow>();
   for (const r of body) {
     const item = (r[iItem] ?? '').trim();
-    if (!item) continue;
+    // Skip empty rows and any totals line, so sales are not counted twice.
+    if (!item || /^(grand\s+)?totals?$/i.test(item)) continue;
     const row: SalesRow = {
       item, cat: iCat >= 0 ? (r[iCat] ?? '').trim() : '', qty: n(r[iQty]), net: n(r[iNet]),
       gp: iGp >= 0 ? n(r[iGp]) : 0, m: iM >= 0 ? n(r[iM]) : 0, disc: iDisc >= 0 ? n(r[iDisc]) : 0, tax: iTax >= 0 ? n(r[iTax]) : 0,

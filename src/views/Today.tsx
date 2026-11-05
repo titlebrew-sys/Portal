@@ -3,6 +3,7 @@ import { Head, MobileWho, aed } from '../components';
 import { dropped, dueToday, expiring, lastWeekly, sessionOf, zeroStock } from '../lib/derive';
 import { addDays, fmtDayMonth, fmtDubaiTime, fmtLongDate, fmtShortDate, greeting, isShift1Locked } from '../lib/time';
 import { fmtNum } from '../lib/ordering';
+import { periodInfo } from '../lib/csv';
 
 export function Today() {
   const { data, me, today, store } = useApp();
@@ -35,6 +36,8 @@ export function Today() {
   };
 
   const netYear = data.sales.reduce((a, r) => a + r.net, 0);
+  // Same day count as the Sales page: the period typed at import, e.g. 730 days for two years.
+  const period = periodInfo(data.salesPeriod);
 
   return (
     <>
@@ -96,7 +99,7 @@ export function Today() {
           <div className="panel">
             <div className="panel-h"><h2>Sales</h2><a href="#sales">Open</a></div>
             {netYear > 0 ? (
-              <div className="stat">{aed(netYear / 365)}<small>a day, {data.salesPeriod ?? 'last import'}</small></div>
+              <div className="stat">{aed(netYear / period.days)}<small>a day, {data.salesPeriod ?? 'last import'} ({period.read ? `${period.days} days` : '365 days assumed'})</small></div>
             ) : (
               <p className="sub" style={{ margin: 0 }}>Import your Loyverse item sales export on the Sales page.</p>
             )}

@@ -43,3 +43,12 @@ describe('sales period, read the same in every browser', () => {
     expect(periodDays('5 Nov 2024 To 5 Nov 2026')).toBe(730);
   });
 });
+
+describe('Loyverse import', () => {
+  it('does not count a totals line as an item', async () => {
+    const { salesFromLoyverse } = await import('./csv');
+    const rows = salesFromLoyverse('Item name,Category,Items sold,Net sales\nCappuccino,Hot Drinks,10,200\nBrownie,Desserts,5,100\nTotal,,15,300\n');
+    expect(rows.map((r) => r.item)).toEqual(['Cappuccino', 'Brownie']);
+    expect(rows.reduce((a, r) => a + r.net, 0)).toBe(300);
+  });
+});
