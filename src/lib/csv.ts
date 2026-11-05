@@ -77,7 +77,7 @@ function dayNumber(y: number, m: number, d: number): number | null {
  * Accepts "5 Nov 2024" / "5 November 2024", "05/11/2024" (day first; also . or -) and "2024-11-05".
  */
 export function parseDay(text: string): number | null {
-  const t = text.trim().replace(/,/g, ' ').replace(/\s+/g, ' ');
+  const t = normalise(text).trim().replace(/,/g, ' ').replace(/\s+/g, ' ');
   let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (m) return dayNumber(+m[1], +m[2], +m[3]);
   m = t.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
@@ -90,15 +90,26 @@ export function parseDay(text: string): number | null {
   return null;
 }
 
+/** Arabic-Indic and Persian digits (from an Arabic phone keyboard) to 0-9; odd spaces to plain spaces. */
+function normalise(text: string): string {
+  return text
+    .replace(/[٠-٩]/g, (c) => String(c.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (c) => String(c.charCodeAt(0) - 0x06f0))
+    .replace(/[   ]/g, ' ');
+}
+
 /**
  * Days covered by a period such as "5 Nov 2024 to 5 Nov 2026" (730).
+ * Between the dates: "to", "until", "till", or a dash (-, –, —) with or without spaces.
  * `read` is false when the dates could not be read; then 365 is assumed.
  */
 export function periodInfo(period: string | null): { days: number; read: boolean } {
-  const parts = (period ?? '').split(/\s+(?:to|until|-|–|—)\s+/i);
-  if (parts.length === 2) {
-    const a = parseDay(parts[0]);
-    const b = parseDay(parts[1]);
+  const t = normalise(period ?? '');
+  // Try every place a separator could be; keep the split where both sides are dates.
+  const sep = /\s+(?:to|until|till)\s+|\s*[-–—]\s*/gi;
+  for (const m of t.matchAll(sep)) {
+    const a = parseDay(t.slice(0, m.index));
+    const b = parseDay(t.slice(m.index + m[0].length));
     if (a !== null && b !== null && b > a) return { days: b - a, read: true };
   }
   return { days: 365, read: false };

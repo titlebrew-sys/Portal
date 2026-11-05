@@ -31,4 +31,15 @@ describe('sales period, read the same in every browser', () => {
     expect(periodInfo(null)).toEqual({ days: 365, read: false });
     expect(periodInfo('5 Nov 2026 to 5 Nov 2024')).toEqual({ days: 365, read: false });
   });
+  it('reads what Android keyboards type', () => {
+    expect(periodDays('5 Nov 2024 - 5 Nov 2026')).toBe(730);
+    expect(periodDays('5 Nov 2024-5 Nov 2026')).toBe(730);
+    expect(periodDays('5 Nov 2024\u20135 Nov 2026')).toBe(730); // en dash, no spaces
+    expect(periodDays('2024-11-05 - 2026-11-05')).toBe(730);
+    expect(periodDays('2024-11-05-2026-11-05')).toBe(730);
+    expect(periodDays('05-11-2024 - 05-11-2026')).toBe(730);
+    expect(periodDays('\u0665 Nov \u0662\u0660\u0662\u0664 to \u0665 Nov \u0662\u0660\u0662\u0666')).toBe(730); // Arabic digits
+    expect(periodDays('5\u00a0Nov\u00a02024 to 5\u00a0Nov\u00a02026')).toBe(730); // non-breaking spaces
+    expect(periodDays('5 Nov 2024 To 5 Nov 2026')).toBe(730);
+  });
 });
