@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { useApp } from '../ctx';
 import { Head, MobileWho, aed } from '../components';
-import { periodDays, salesFromLoyverse } from '../lib/csv';
+import { periodInfo, salesFromLoyverse } from '../lib/csv';
+
+const daysLabel = (p: string | null) => {
+  const i = periodInfo(p);
+  return i.read ? `${i.days} days` : `dates not recognised, 365 days assumed`;
+};
 
 export function Sales() {
   const { data, store, run, toast } = useApp();
@@ -26,7 +31,9 @@ export function Sales() {
         Sales stay private: only the owner login can see them.
       </p>
       <div className="fieldset">
-        <label>Period<input className="field" placeholder="5 Nov 2025 to 5 Nov 2026" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 260 }} /></label>
+        <label>Period<input className="field" placeholder="5 Nov 2025 to 5 Nov 2026" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 260 }} />
+          {period.trim() && <span style={{ fontWeight: 500, color: periodInfo(period).read ? 'var(--good)' : 'var(--bad)' }}>{daysLabel(period)}</span>}
+        </label>
         <label>Loyverse file (.csv)<input className="field" type="file" accept=".csv,text/csv" onChange={(e) => onFile(e.target.files?.[0])} style={{ paddingTop: 8 }} /></label>
       </div>
     </div>
@@ -41,7 +48,7 @@ export function Sales() {
       </>
     );
 
-  const days = periodDays(data.salesPeriod);
+  const days = periodInfo(data.salesPeriod).days;
   const sum = (k: 'net' | 'gp' | 'qty' | 'disc') => s.reduce((a, r) => a + (Number(r[k]) || 0), 0);
   const net = sum('net'), gp = sum('gp'), qty = sum('qty'), disc = sum('disc');
   const cats: Record<string, number> = {};
@@ -59,7 +66,7 @@ export function Sales() {
   return (
     <>
       <MobileWho />
-      <Head eyebrow={'Loyverse item sales, ' + (data.salesPeriod ?? '')} title="Sales" sub="From your Loyverse export. Profit uses the recipe costs set in Loyverse, so it is only as good as those recipes." />
+      <Head eyebrow={`Loyverse item sales, ${data.salesPeriod ?? ''} (${daysLabel(data.salesPeriod)})`} title="Sales" sub="From your Loyverse export. Profit uses the recipe costs set in Loyverse, so it is only as good as those recipes." />
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
         {tile(aed(net), `Net sales, about ${aed(net / days)} a day`)}
         {tile(net ? Math.round((gp / net) * 100) + '%' : '–', `Gross margin, ${aed(gp)} profit`)}

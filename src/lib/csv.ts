@@ -61,13 +61,49 @@ export function salesFromLoyverse(text: string): SalesRow[] {
   return [...merged.values()];
 }
 
-/** Days covered by "5 Nov 2025 to 5 Nov 2026"; 365 if it cannot tell. */
-export function periodDays(period: string | null): number {
-  const m = period?.split(/\s+to\s+/i);
-  if (m && m.length === 2) {
-    const a = Date.parse(m[0]);
-    const b = Date.parse(m[1]);
-    if (Number.isFinite(a) && Number.isFinite(b) && b > a) return Math.max(1, Math.round((b - a) / 864e5));
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+/** UTC day number for a valid date, or null (rejects 31 Feb and the like). */
+function dayNumber(y: number, m: number, d: number): number | null {
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const t = Date.UTC(y, m - 1, d);
+  const x = new Date(t);
+  if (x.getUTCFullYear() !== y || x.getUTCMonth() !== m - 1 || x.getUTCDate() !== d) return null;
+  return t / 864e5;
+}
+
+/**
+ * Reads one date without Date.parse, so every browser (including Safari on iPhone) agrees.
+ * Accepts "5 Nov 2024" / "5 November 2024", "05/11/2024" (day first; also . or -) and "2024-11-05".
+ */
+export function parseDay(text: string): number | null {
+  const t = text.trim().replace(/,/g, ' ').replace(/\s+/g, ' ');
+  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return dayNumber(+m[1], +m[2], +m[3]);
+  m = t.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+  if (m) return dayNumber(+m[3], +m[2], +m[1]);
+  m = t.match(/^(\d{1,2}) ([A-Za-z]{3,})\.? (\d{4})$/);
+  if (m) {
+    const mon = MONTHS.indexOf(m[2].slice(0, 3).toLowerCase());
+    return mon < 0 ? null : dayNumber(+m[3], mon + 1, +m[1]);
   }
-  return 365;
+  return null;
+}
+
+/**
+ * Days covered by a period such as "5 Nov 2024 to 5 Nov 2026" (730).
+ * `read` is false when the dates could not be read; then 365 is assumed.
+ */
+export function periodInfo(period: string | null): { days: number; read: boolean } {
+  const parts = (period ?? '').split(/\s+(?:to|until|-|–|—)\s+/i);
+  if (parts.length === 2) {
+    const a = parseDay(parts[0]);
+    const b = parseDay(parts[1]);
+    if (a !== null && b !== null && b > a) return { days: b - a, read: true };
+  }
+  return { days: 365, read: false };
+}
+
+export function periodDays(period: string | null): number {
+  return periodInfo(period).days;
 }
