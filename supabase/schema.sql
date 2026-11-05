@@ -198,6 +198,20 @@ drop trigger if exists counts_shift1_lock on public.counts;
 create trigger counts_shift1_lock before insert or update on public.counts
   for each row execute function public.enforce_shift1_lock();
 
+-- Kitchen rows: the saved quantity is always old batch + new batch + frozen.
+create or replace function public.counts_kitchen_total() returns trigger
+language plpgsql as $$
+begin
+  if new.old_qty is not null or new.new_qty is not null or new.frozen_qty is not null then
+    new.qty := coalesce(new.old_qty, 0) + coalesce(new.new_qty, 0) + coalesce(new.frozen_qty, 0);
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists counts_kitchen_total on public.counts;
+create trigger counts_kitchen_total before insert or update on public.counts
+  for each row execute function public.counts_kitchen_total();
+
 -- Hands out the next LPO number and moves the counter on, in one step.
 create or replace function public.take_lpo_number() returns int
 language plpgsql security definer set search_path = public as $$

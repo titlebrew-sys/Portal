@@ -5,6 +5,7 @@ import type { Area, CountItem, CountRow, Shift, WasteReason } from '../types';
 import { activeItems, countOf, lastWeekly } from '../lib/derive';
 import { addDays, fmtDayMonth, fmtShortDate, isShift1Locked } from '../lib/time';
 import { fmtNum } from '../lib/ordering';
+import { countTotal, referenceText } from '../lib/count';
 
 interface Draft {
   qty: string;
@@ -26,10 +27,7 @@ function draftFrom(c: CountRow | undefined): Draft {
 }
 
 function totalOf(item: CountItem, d: Draft): number | null {
-  if (!item.hasBatches && !item.hasFrozen) return parseNum(d.qty);
-  const parts = [item.hasBatches ? parseNum(d.oldQty) : null, item.hasBatches ? parseNum(d.newQty) : null, item.hasFrozen ? parseNum(d.frozenQty) : null];
-  if (parts.every((p) => p === null)) return null;
-  return parts.reduce<number>((a, p) => a + (p ?? 0), 0);
+  return countTotal(item, { qty: parseNum(d.qty), oldQty: parseNum(d.oldQty), newQty: parseNum(d.newQty), frozenQty: parseNum(d.frozenQty) });
 }
 
 export function Count() {
@@ -71,12 +69,9 @@ export function Count() {
 
   const ref = (i: CountItem): { text: string; base: number | null } => {
     if (area === 'Weekly') return { text: i.hint || 'Count once a week', base: null };
-    if (effShift === 1) {
-      const y = countOf(data, addDays(today, -1), 2, i.id)?.qty ?? null;
-      return { text: area === 'Bar' ? `Last night ${y === null ? 'not counted' : fmtNum(y) + ' ' + i.unit}` : '', base: y };
-    }
-    const t = countOf(data, today, 1, i.id)?.qty ?? null;
-    return { text: `Shift 1 today ${t === null ? 'not counted' : fmtNum(t) + ' ' + i.unit}`, base: t };
+    // Shift 1 compares with last night's closing count, Shift 2 with today's Shift 1.
+    const row = effShift === 1 ? countOf(data, addDays(today, -1), 2, i.id) : countOf(data, today, 1, i.id);
+    return { text: referenceText(effShift === 1 ? 'Last night' : 'Shift 1 today', i, row), base: row?.qty ?? null };
   };
 
   async function save() {

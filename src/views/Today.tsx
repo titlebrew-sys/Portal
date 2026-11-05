@@ -18,15 +18,18 @@ export function Today() {
   const weekly = lastWeekly(data, today);
   const locked = isShift1Locked(today);
 
-  const status = (area: 'Bar' | 'Kitchen') => {
-    const s = sessionOf(data, today, 1, area);
+  const status = (area: 'Bar' | 'Kitchen', shift: 1 | 2) => {
+    const s = sessionOf(data, today, shift, area);
+    let waiting: { text: string; pill: string; cls: string };
+    if (shift === 1) waiting = locked ? { text: 'Locked at 5pm', pill: 'Missed', cls: 'p-bad' } : { text: 'Due before 4pm', pill: 'Not started', cls: 'p-warn' };
+    else waiting = locked ? { text: 'Closing count at 9pm', pill: 'Not started', cls: 'p-warn' } : { text: 'Closing count at 9pm', pill: 'Later', cls: 'p-mute' };
     return (
-      <div className="r">
+      <div className="r" key={area + shift}>
         <div className="t">
-          <b>{area}</b>
-          <span>{s ? `${s.savedBy} saved at ${fmtDubaiTime(s.savedAt)}` : locked ? 'Locked at 5pm' : 'Due before 4pm'}</span>
+          <b>{area}, Shift {shift}</b>
+          <span>{s ? `${s.savedBy} saved at ${fmtDubaiTime(s.savedAt)}` : waiting.text}</span>
         </div>
-        {s ? <span className="pill p-good">Done {s.done} of {s.total}</span> : <span className={'pill ' + (locked ? 'p-bad' : 'p-warn')}>{locked ? 'Missed' : 'Not started'}</span>}
+        {s ? <span className={'pill ' + (s.done < s.total ? 'p-warn' : 'p-good')}>Done {s.done} of {s.total}</span> : <span className={'pill ' + waiting.cls}>{waiting.pill}</span>}
       </div>
     );
   };
@@ -44,10 +47,12 @@ export function Today() {
       />
       <div className="grid">
         <div className="panel">
-          <div className="panel-h"><h2>Shift 1 counts</h2><a href="#count">Open</a></div>
+          <div className="panel-h"><h2>Today's counts</h2><a href="#count">Open</a></div>
           <div className="rows">
-            {status('Bar')}
-            {status('Kitchen')}
+            {status('Bar', 1)}
+            {status('Bar', 2)}
+            {status('Kitchen', 1)}
+            {status('Kitchen', 2)}
             <div className="r">
               <div className="t"><b>Weekly</b><span>Packaging, cups, chips</span></div>
               {weekly ? <span className="pill p-good">Done {fmtShortDate(weekly.businessDate)}</span> : <span className="pill p-warn">Due this week</span>}
