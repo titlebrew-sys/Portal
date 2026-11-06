@@ -1,14 +1,16 @@
 // Supabase Edge Function: loyverse-sync
 // Copies the Loyverse menu and receipts into the portal database. Runs every 5 minutes.
 // - The Loyverse token is the Edge Function secret LOYVERSE_TOKEN (never in code or the browser).
-// - First runs fill in 2 years of receipts (from 5 Nov 2024) in batches; safe to stop and resume.
+// - First runs fill in the last 3 months of receipts (HISTORY_DAYS) in batches; safe to stop and resume.
 // - Each run is written to sync_runs, shown as "Sync status" in the portal.
 // Single file on purpose: it can be pasted into the Supabase dashboard editor.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const API = Deno.env.get('LOYVERSE_API_BASE') || 'https://api.loyverse.com/v1.0/';
 const LOCATION = 'business-bay';
-const BACKFILL_FROM = '2024-11-05T00:00:00.000Z';
+// How far back to fill in past receipts, counted from the first run. 92 days = about 3 months.
+// To bring in more later (e.g. 730 for 2 years), change this number and see the README.
+const HISTORY_DAYS = 92;
 const WINDOW_DAYS = 3;
 // Small runs: Supabase stops a function that works too hard in one go. History fills in over several runs.
 const TIME_BUDGET_MS = 25_000;
@@ -170,7 +172,10 @@ Deno.serve(async (req: Request) => {
     else await setState('live', live); // remember the first run time even if this run stopped early
 
     // 3. Two years of history, a few days at a time, picking up where the last run stopped
-    const back = (await getState('backfill')) ?? { windowStart: BACKFILL_FROM, cursor: '', done: false };
+    const historyFrom = new Date(Date.parse(live.firstRun) - HISTORY_DAYS * 864e5).toISOString();
+    const back = (await getState('backfill')) ?? { windowStart: historyFrom, cursor: '', done: false };
+    // Never go further back than HISTORY_DAYS, even if an earlier run started from an older date
+    if (back.windowStart < historyFrom) Object.assign(back, { windowStart: historyFrom, cursor: '' });
     let backCount = 0;
     while (!back.done && timeLeft() > 8000 && pages < MAX_PAGES_PER_RUN) {
       const until = live.firstRun as string;

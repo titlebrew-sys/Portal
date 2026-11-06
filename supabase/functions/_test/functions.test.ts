@@ -8,10 +8,11 @@ const receipt = (n: number, at: string, extra: any = {}) => ({
   ...extra,
 });
 
-Deno.test({ name: 'loyverse-sync: menu, new receipts, and 2-year history in resumable batches', sanitizeOps: false, sanitizeResources: false }, async () => {
+Deno.test({ name: 'loyverse-sync: menu, new receipts, and the last 3 months in resumable batches', sanitizeOps: false, sanitizeResources: false }, async () => {
   tables.clear();
-  // 1000 historic receipts spread from Nov 2024; 3 recent ones
-  const history = Array.from({ length: 1000 }, (_, i) => receipt(i, new Date(Date.parse('2024-11-05T06:00:00Z') + i * 17 * 3600_000).toISOString()));
+  // 1000 receipts over the last ~83 days, 50 older than 3 months (not wanted), 3 recent ones
+  const history = Array.from({ length: 1000 }, (_, i) => receipt(i, new Date(Date.now() - (i + 1) * 2 * 3600_000).toISOString()))
+    .concat(Array.from({ length: 50 }, (_, i) => receipt(9000 + i, new Date(Date.now() - (100 + i) * 864e5).toISOString())));
   const recent = [receipt(5001, new Date().toISOString()), receipt(5002, new Date().toISOString(), { cancelled_at: new Date().toISOString() }),
     receipt(5003, new Date().toISOString(), { receipt_type: 'REFUND' })];
   const calls: string[] = [];

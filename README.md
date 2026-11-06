@@ -34,7 +34,9 @@ The starting min/max/pack-size numbers in `src/data/seed.json` were set so the s
 ## How it works: stock, recipes and Loyverse (part 2)
 
 - **Sales**: the Supabase function `loyverse-sync` copies the Loyverse menu and receipts every 5 minutes
-  (`supabase/cron.sql`). First runs fill in receipts from 5 Nov 2024, a few days at a time, and resume where they stopped.
+  (`supabase/cron.sql`). First runs fill in the last 3 months of receipts (`HISTORY_DAYS = 92` in the function), a few days at a time,
+  and resume where they stopped. To bring in more history later: change `HISTORY_DAYS` (e.g. 730), redeploy the function,
+  and run `delete from sync_state where key = 'backfill';` in the SQL Editor once.
   Each run is logged and shown as **Sync status** on Items and rules. Times are stored in UTC and shown in Dubai time;
   a shop day runs 4am to 4am. The Loyverse token is the function secret `LOYVERSE_TOKEN`, never in this repo or the browser.
 - **Recipes** live in the portal (`recipes`, `modifier_rules`, `ingredients` tables), in g, ml or pieces, with a change history.
