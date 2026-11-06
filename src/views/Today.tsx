@@ -4,6 +4,11 @@ import { dropped, dueToday, expiring, lastWeekly, sessionOf, zeroStock } from '.
 import { addDays, fmtDayMonth, fmtDubaiTime, fmtLongDate, fmtShortDate, greeting, isShift1Locked } from '../lib/time';
 import { fmtNum } from '../lib/ordering';
 import { periodInfo } from '../lib/csv';
+import { useEffect, useMemo, useState } from 'react';
+import type { SalesReport } from '../types';
+import { useStockData } from '../lib/useStock';
+import { differenceRows } from './Differences';
+import { amt, countLabel, signed } from './stockParts';
 
 export function Today() {
   const { data, me, today, store } = useApp();
@@ -100,13 +105,13 @@ export function Today() {
             <div className="panel-h"><h2>Sales</h2><a href="#sales">Open</a></div>
             {netYear > 0 ? (
               <div className="stat">{aed(netYear / period.days)}<small>a day, {data.salesPeriod ?? 'last import'} ({period.read ? `${period.days} days` : '365 days assumed'})</small></div>
-            ) : (
-              <p className="sub" style={{ margin: 0 }}>Import your Loyverse item sales export on the Sales page.</p>
-            )}
-            <p className="sub" style={{ margin: 0 }}>Today's live sales appear here once Loyverse is connected.</p>
+            ) : null}
+            <TodaySales />
             <a className="link mobile-only" href="#rules">Items and rules</a>
           </div>
         )}
+
+        <DifferenceAlerts />
 
         <div className="panel">
           <div className="panel-h"><h2>Stock to watch</h2><a href="#count">Bar</a></div>
@@ -136,4 +141,47 @@ export function Today() {
       </div>
     </>
   );
+}
+
+/** Counts from yesterday and today that differ from expected by more than the limit. */
+function DifferenceAlerts() {
+  const { data, store, today } = useApp();
+  const from = addDays(today, -1);
+  const sd = useStockData(data, store, from, today);
+  const over = useMemo(() => {
+    if (!data.book.ingredients.length) return [];
+    const seen = new Set<string>();
+    return differenceRows(data.book.ingredients.filter((i) => i.active), sd.inputs, from, today).filter((r) => {
+      if (!r.step.over || seen.has(r.ing.id)) return false;
+      seen.add(r.ing.id);
+      return true;
+    });
+  }, [data.book.ingredients, sd.inputs, from, today]);
+  if (!data.book.ingredients.length) return null;
+  return (
+    <div className="panel">
+      <div className="panel-h"><h2>Stock differences</h2><a href="#differences">Open</a></div>
+      <div className="rows">
+        {sd.loading && <div className="r"><div className="t"><span>Checking the last counts against sales…</span></div></div>}
+        {!sd.loading && !over.length && <div className="r"><div className="t"><b>Counts match what was expected</b><span>Yesterday and today, within the limits</span></div><span className="pill p-good">Clear</span></div>}
+        {over.slice(0, 6).map((r) => (
+          <a key={r.ing.id} className="r" href="#differences" style={{ color: 'inherit', textDecoration: 'none' }}>
+            <div className="t"><b>{r.ing.name}</b><span>{countLabel(r.step.to)}: counted {amt(r.step.counted, r.ing.unit)}, expected {amt(r.step.expected, r.ing.unit)}</span></div>
+            <span className="pill p-bad">{signed(r.step.difference, r.ing.unit)}</span>
+          </a>
+        ))}
+        {over.length > 6 && <div className="r"><div className="t"><span>and {over.length - 6} more</span></div></div>}
+      </div>
+    </div>
+  );
+}
+
+/** Today so far, live from Loyverse. */
+function TodaySales() {
+  const { store, today } = useApp();
+  const [r, setR] = useState<SalesReport | null | undefined>(undefined);
+  useEffect(() => { store.salesReport(today, today).then(setR).catch(() => setR(null)); }, [store, today]);
+  if (r === undefined) return <p className="sub" style={{ margin: 0 }}>Checking today's sales…</p>;
+  if (!r || !r.totals.receipts) return <p className="sub" style={{ margin: 0 }}>No sales from Loyverse yet today.</p>;
+  return <p className="sub" style={{ margin: 0 }}><b>Today so far: {aed(r.totals.sales)}</b> from {r.totals.receipts} receipts{store.mode === 'demo' ? ' (demo)' : ''}.</p>;
 }

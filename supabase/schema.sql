@@ -191,7 +191,9 @@ declare
   local_now timestamp := now() at time zone 'Asia/Dubai';
   lock_at timestamp := new.business_date + time '17:00';
 begin
-  if new.shift = 1 and local_now >= lock_at and not public.is_owner() then
+  -- The owner, and counts sent by the Google Sheet bridge, may still change it.
+  if new.shift = 1 and local_now >= lock_at and not public.is_owner()
+     and coalesce(auth.role(), '') <> 'service_role' then
     raise exception 'Shift 1 is locked after 5pm. Ask the owner to change it.';
   end if;
   return new;

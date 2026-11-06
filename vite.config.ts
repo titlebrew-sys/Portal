@@ -6,5 +6,5 @@ export default defineConfig({
   build: {
     rollupOptions: { output: { manualChunks: { supabase: ['@supabase/supabase-js'], react: ['react', 'react-dom'] } } },
   },
-  test: { environment: 'node' },
+  test: { environment: 'node', include: ['src/**/*.test.ts'] },
 } as never);

@@ -31,6 +31,25 @@ Built with Vite, React and TypeScript. Database and login: Supabase (free tier).
 
 The starting min/max/pack-size numbers in `src/data/seed.json` were set so the suggestions match the prototype on 5 Nov 2026. Check them on the Items and rules screen.
 
+## How it works: stock, recipes and Loyverse (part 2)
+
+- **Sales**: the Supabase function `loyverse-sync` copies the Loyverse menu and receipts every 5 minutes
+  (`supabase/cron.sql`). First runs fill in receipts from 5 Nov 2024, a few days at a time, and resume where they stopped.
+  Each run is logged and shown as **Sync status** on Items and rules. Times are stored in UTC and shown in Dubai time;
+  a shop day runs 4am to 4am. The Loyverse token is the function secret `LOYVERSE_TOKEN`, never in this repo or the browser.
+- **Recipes** live in the portal (`recipes`, `modifier_rules`, `ingredients` tables), in g, ml or pieces, with a change history.
+  "Set up recipes" copies Loyverse components, converts units and applies Rimma's corrections (`src/lib/catalog.ts`).
+  Choices (milk, beans, extra shot, syrup, size, croissant, Classic Coffee) and take-away packaging change what a sale uses
+  (`src/lib/usage.ts`).
+- **Stock**: `Expected stock = last count + arrived − used by sales − thrown away`, `Difference = counted − expected`, for every
+  Shift 1, Shift 2 and weekly count, using receipt, delivery and waste times between the two counts (`src/lib/stock.ts`).
+  Pieces alert on any difference; weighed and poured items above 5% (editable per ingredient).
+- **Counts from the Google Sheet**: `apps-script/PortalBridge.gs` sends each sheet save to the function `sheet-counts`,
+  protected by the secret `BRIDGE_SECRET`. Re-sends never double count.
+- **Screens**: Stock, Differences (with Excel export), Recipes (with "Check a sale"), Sales (live), How it works.
+- **Setup files**: run `supabase/schema.sql`, then `supabase/stock.sql`, then `supabase/cron.sql` (fill in the two values).
+- **Tests**: `npm test` (recipes, stock, orders) and `deno test --allow-env --allow-read --allow-net=jsr.io supabase/functions/_test/` (the two functions).
+
 ## Demo mode
 
 Without Supabase settings the portal runs in demo mode with the prototype data. Changes stay in that browser only.

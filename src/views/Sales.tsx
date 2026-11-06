@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { LiveSales } from './LiveSales';
 import { useApp } from '../ctx';
 import { Head, MobileWho, aed } from '../components';
 import { periodInfo, salesFromLoyverse } from '../lib/csv';
@@ -8,7 +9,7 @@ const daysLabel = (p: string | null) => {
   return i.read ? `${i.days} days` : `dates not recognised, 365 days assumed`;
 };
 
-export function Sales() {
+function FileSales() {
   const { data, store, run, toast } = useApp();
   const [period, setPeriod] = useState(data.salesPeriod ?? '');
   const s = data.sales;
@@ -129,6 +130,20 @@ export function Sales() {
         <p className="sub" style={{ margin: 0 }}>This export is a period total. A receipts export, or connecting Loyverse directly, adds trends by month, weekday and hour, plus a check of expected stock use against your counts.</p>
       </div>
       {importer}
+    </>
+  );
+}
+
+/** Sales: live from Loyverse, or from an exported file (older history). */
+export function Sales() {
+  const [tab, setTab] = useState<'live' | 'file'>('live');
+  return (
+    <>
+      <div className="tabs noprint">
+        <button className="btn sm" aria-pressed={tab === 'live'} onClick={() => setTab('live')}>Live from Loyverse</button>
+        <button className="btn sm" aria-pressed={tab === 'file'} onClick={() => setTab('file')}>From a Loyverse file</button>
+      </div>
+      {tab === 'live' ? <LiveSales /> : <FileSales />}
     </>
   );
 }

@@ -6,7 +6,8 @@
  * who can read and change what.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { AppData, CountItem, CountRow, Order, Rule, SalesRow, Supplier, WasteRow } from '../types';
+import type { AppData, CountItem, CountRow, Ingredient, ModifierRule, Order, Receipt, Recipe, RecipeChange, Rule, SalesReport, SalesRow, StockBook, Supplier, SyncRun, WasteRow } from '../types';
+import type { LyItem } from '../lib/importRecipes';
 import type { Auth, Store } from './store';
 import { seedItems, seedLpoNext, seedRules, seedSuppliers } from './seed';
 import { addDays, businessDate } from '../lib/time';
@@ -70,40 +71,102 @@ const orderFrom = (r: any): Order => ({
   id: r.id, businessDate: r.business_date, supplierId: r.supplier_id, lines: r.lines, message: r.message, lpoNumber: r.lpo_number,
   sentBy: r.sent_by, sentAt: r.sent_at, receivedAt: r.received_at, receivedBy: r.received_by, received: r.received,
 });
-const wasteFrom = (r: any): WasteRow => ({ id: r.id, date: r.date, item: r.item, qty: Number(r.qty), reason: r.reason, loggedBy: r.logged_by });
+const wasteFrom = (r: any): WasteRow => ({ id: r.id, date: r.date, item: r.item, qty: Number(r.qty), reason: r.reason, loggedBy: r.logged_by, createdAt: r.created_at });
+const ingFrom = (r: any): Ingredient => ({
+  id: r.id, name: r.name, unit: r.unit, countFrom: r.count_from ?? '', limitPct: Number(r.limit_pct), note: r.note, active: r.active, sort: r.sort,
+});
+const ingTo = (i: Ingredient, by: string) => ({
+  id: i.id, name: i.name, unit: i.unit, count_from: i.countFrom, limit_pct: i.limitPct, note: i.note, active: i.active, sort: i.sort, updated_by: by, updated_at: new Date().toISOString(),
+});
+const recipeFrom = (r: any): Recipe => ({
+  id: r.id, itemName: r.item_name, lines: r.lines ?? [], takeaway: r.takeaway ?? [], ignoreGroups: r.ignore_groups ?? [], note: r.note,
+  updatedBy: r.updated_by, updatedAt: r.updated_at,
+});
+const recipeTo = (r: Recipe) => ({
+  id: r.id, item_name: r.itemName, lines: r.lines, takeaway: r.takeaway, ignore_groups: r.ignoreGroups, note: r.note, updated_by: r.updatedBy, updated_at: r.updatedAt,
+});
+const modFrom = (r: any): ModifierRule => ({ id: r.id, group: r.grp, option: r.opt, effects: r.effects ?? [], note: r.note, updatedBy: r.updated_by, updatedAt: r.updated_at });
+const modTo = (r: ModifierRule) => ({ id: r.id, grp: r.group, opt: r.option, effects: r.effects, note: r.note, updated_by: r.updatedBy, updated_at: r.updatedAt });
+const runFrom = (r: any): SyncRun => ({
+  id: r.id, kind: r.kind, startedAt: r.started_at, finishedAt: r.finished_at, receipts: r.receipts, ok: r.ok, message: r.message, latestReceiptAt: r.latest_receipt_at,
+});
+
+/** Supabase sends at most 1000 rows at a time: ask page by page until everything is in. */
+async function allRows(build: () => any): Promise<any[]> {
+  const out: any[] = [];
+  for (let from = 0; from < 200_000; from += 1000) {
+    const { data, error } = await build().range(from, from + 999);
+    if (error) throw new Error(error.message);
+    out.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+
+const NOT_SET_UP = /does not exist|schema cache|relation/i;
+
+/** Ingredients, recipes, modifier rules and sync status. Empty (with a note) until stock.sql has been run. */
+async function loadBook(): Promise<StockBook> {
+  try {
+    const [ings, recipes, mods, items, cats, runs] = await Promise.all([
+      allRows(() => sb().from('ingredients').select('*').order('sort')),
+      allRows(() => sb().from('recipes').select('*').order('item_name')),
+      allRows(() => sb().from('modifier_rules').select('*')),
+      allRows(() => sb().from('loyverse_items').select('id, name, category_id').is('deleted_at', null)),
+      allRows(() => sb().from('loyverse_categories').select('id, name')),
+      sb().from('sync_runs').select('*').order('started_at', { ascending: false }).limit(30).then((r: any) => check(r) as any[]),
+    ]);
+    const catName = new Map(cats.map((c: any) => [c.id, c.name]));
+    return {
+      ingredients: ings.map(ingFrom), recipes: recipes.map(recipeFrom), modifierRules: mods.map(modFrom),
+      loyverseItems: items.map((i: any) => ({ id: i.id, name: i.name, category: catName.get(i.category_id) ?? null })),
+      syncRuns: runs.map(runFrom),
+    };
+  } catch (e) {
+    const msg = (e as Error).message;
+    return {
+      ingredients: [], recipes: [], modifierRules: [], loyverseItems: [],
+      syncRuns: [{ id: 'setup', kind: 'loyverse', startedAt: new Date().toISOString(), finishedAt: null, receipts: 0, ok: false, latestReceiptAt: null,
+        message: NOT_SET_UP.test(msg) ? 'The stock part of the database is not set up yet. Follow the setup steps for stock and sales.' : msg }],
+    };
+  }
+}
 const salesFrom = (r: any): SalesRow => ({ item: r.item, cat: r.cat, qty: +r.qty, net: +r.net, gp: +r.gp, m: +r.m, disc: +r.disc, tax: +r.tax });
 
-export function liveStore(isOwner: () => boolean): Store {
+export function liveStore(isOwner: () => boolean, myName: () => string = () => 'Owner'): Store {
   const db = () => sb();
   return {
     mode: 'live',
     async load(): Promise<AppData> {
       const since = addDays(businessDate(), -HISTORY_DAYS);
-      const [items, sups, rules, counts, sessions, orders, waste, settings, sales] = await Promise.all([
-        db().from('count_items').select('*').order('sort'),
-        db().from('suppliers').select('*').order('sort'),
-        db().from('rules').select('*').order('sort'),
-        db().from('counts').select('*').gte('business_date', since),
-        db().from('count_sessions').select('*').gte('business_date', since),
-        db().from('orders').select('*').gte('business_date', since),
-        db().from('waste').select('*').gte('date', since),
-        db().from('settings').select('*'),
-        isOwner() ? db().from('sales_items').select('*') : Promise.resolve({ data: [], error: null }),
+      const page = (t: string, col: string, order?: string) => allRows(() => { const q = db().from(t).select('*').gte(col, since); return order ? q.order(order) : q; });
+      const [items, sups, rules, counts, sessions, orders, waste, settings, sales, book] = await Promise.all([
+        allRows(() => db().from('count_items').select('*').order('sort')),
+        allRows(() => db().from('suppliers').select('*').order('sort')),
+        allRows(() => db().from('rules').select('*').order('sort')),
+        page('counts', 'business_date', 'business_date'),
+        page('count_sessions', 'business_date'),
+        page('orders', 'business_date'),
+        page('waste', 'date'),
+        allRows(() => db().from('settings').select('*')),
+        isOwner() ? allRows(() => db().from('sales_items').select('*')) : Promise.resolve([]),
+        loadBook(),
       ]);
-      const set = Object.fromEntries((check(settings) as any[]).map((s) => [s.key, s.value]));
+      const set = Object.fromEntries((settings as any[]).map((s) => [s.key, s.value]));
       return {
-        items: (check(items) as any[]).map(itemFrom),
-        suppliers: (check(sups) as any[]).map(supFrom),
-        rules: (check(rules) as any[]).map(ruleFrom),
-        counts: (check(counts) as any[]).map(countFrom),
-        sessions: (check(sessions) as any[]).map((r) => ({
+        items: (items as any[]).map(itemFrom),
+        suppliers: (sups as any[]).map(supFrom),
+        rules: (rules as any[]).map(ruleFrom),
+        counts: (counts as any[]).map(countFrom),
+        sessions: (sessions as any[]).map((r) => ({
           businessDate: r.business_date, shift: r.shift, area: r.area, savedBy: r.saved_by, savedAt: r.saved_at, done: r.done, total: r.total,
         })),
-        orders: (check(orders) as any[]).map(orderFrom),
-        waste: (check(waste) as any[]).map(wasteFrom),
-        sales: (check(sales) as any[]).map(salesFrom),
+        orders: (orders as any[]).map(orderFrom),
+        waste: (waste as any[]).map(wasteFrom),
+        sales: (sales as any[]).map(salesFrom),
         salesPeriod: set.sales_period ?? null,
         lpoNext: Number(set.lpo_next ?? seedLpoNext),
+        book,
       };
     },
     async saveCounts(rows, s) {
@@ -157,6 +220,63 @@ export function liveStore(isOwner: () => boolean): Store {
       check(await db().from('count_items').upsert(seedItems.map(itemTo)));
       check(await db().from('suppliers').upsert(seedSuppliers.map(supTo)));
       check(await db().from('rules').upsert(seedRules.map(ruleTo)));
+    },
+    async loadReceipts(fromIso, toIso): Promise<Receipt[]> {
+      // One day at a time keeps each answer small.
+      const out: Receipt[] = [];
+      for (let t = Date.parse(fromIso); t < Date.parse(toIso); t += 864e5) {
+        const end = new Date(Math.min(t + 864e5, Date.parse(toIso))).toISOString();
+        out.push(...((check(await db().rpc('receipt_bundle', { p_from: new Date(t).toISOString(), p_to: end })) as Receipt[]) ?? []));
+      }
+      return out;
+    },
+    async salesReport(from, to): Promise<SalesReport | null> {
+      return (check(await db().rpc('sales_report', { p_from: from, p_to: to })) as SalesReport) ?? null;
+    },
+    async loyverseMenu(): Promise<LyItem[]> {
+      const [items, variants, cats] = await Promise.all([
+        allRows(() => db().from('loyverse_items').select('*').is('deleted_at', null)),
+        allRows(() => db().from('loyverse_variants').select('variant_id, item_id')),
+        allRows(() => db().from('loyverse_categories').select('id, name')),
+      ]);
+      const catName = new Map(cats.map((c: any) => [c.id, c.name]));
+      return items.map((i: any) => ({
+        id: i.id, name: i.name, category: catName.get(i.category_id) ?? null, isComposite: i.is_composite,
+        components: (i.components ?? []).map((c: any) => ({ variantId: c.variant_id, qty: Number(c.quantity) })),
+        variantIds: variants.filter((v: any) => v.item_id === i.id).map((v: any) => v.variant_id),
+      }));
+    },
+    async saveIngredient(i) {
+      check(await db().from('ingredients').upsert(ingTo(i, myName())));
+    },
+    async saveRecipes(list) {
+      for (let k = 0; k < list.length; k += 200) check(await db().from('recipes').upsert(list.slice(k, k + 200).map(recipeTo)));
+    },
+    async saveModifierRule(r) {
+      check(await db().from('modifier_rules').upsert(modTo(r)));
+    },
+    async seedStock(ingredients, rules) {
+      const have = new Set((await allRows(() => db().from('ingredients').select('id'))).map((r: any) => r.id));
+      const missing = ingredients.filter((i) => !have.has(i.id));
+      if (missing.length) check(await db().from('ingredients').upsert(missing.map((i) => ingTo(i, 'Starting setup'))));
+      const haveRules = new Set((await allRows(() => db().from('modifier_rules').select('id'))).map((r: any) => r.id));
+      const newRules = rules.filter((r) => !haveRules.has(r.id));
+      if (newRules.length) check(await db().from('modifier_rules').upsert(newRules.map(modTo)));
+    },
+    async recipeHistory(targetId): Promise<RecipeChange[]> {
+      let q = db().from('recipe_changes').select('*').order('changed_at', { ascending: false }).limit(200);
+      if (targetId) q = q.eq('target_id', targetId);
+      return ((check(await q) as any[]) ?? []).map((r) => ({
+        id: r.id, kind: r.kind, targetId: r.target_id, label: r.label, before: r.before, after: r.after, changedBy: r.changed_by, changedAt: r.changed_at,
+      }));
+    },
+    async saveAlias(name, itemId) {
+      check(await db().from('count_item_aliases').upsert({ name, item_id: itemId }));
+    },
+    async syncNow() {
+      const { data, error } = await db().functions.invoke('loyverse-sync', { body: {} });
+      if (error) throw new Error(error.message);
+      return (data as { message?: string })?.message ?? 'Done';
     },
   };
 }

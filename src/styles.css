@@ -217,3 +217,16 @@ tr.clickable:hover td { background: var(--sunk); }
   .xl-wrap { border: 0; padding: 0; overflow: visible; }
   .xl-item.on td { background: #fff; }
 }
+
+/* Stock, differences, recipes */
+.tap { font: inherit; font-weight: 700; color: var(--s1); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+.tap-body { flex-basis: 100%; background: var(--sunk); border-radius: 10px; padding: 10px 12px; margin-top: 6px; font-size: 14px; }
+.breakdown { display: flex; flex-direction: column; gap: 2px; }
+.breakdown > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 4px 0; }
+.breakdown > div > span { color: var(--muted); }
+.breakdown > div > b, .breakdown > div > .tap { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.breakdown .total { border-top: 1px solid var(--line); font-weight: 600; }
+.breakdown .total > span { color: var(--ink); }
+.how p, .how li { margin: 0; color: var(--ink); max-width: 70ch; }
+.how ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.formula { font-weight: 700; font-size: 16px; background: var(--sunk); border-radius: 10px; padding: 10px 14px; }

@@ -24,6 +24,36 @@ export const ICON: Record<string, ReactNode> = {
   ),
   waste: <path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" />,
   sales: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  stock: (
+    <>
+      <path d="M4 7l8-4 8 4-8 4z" />
+      <path d="M4 12l8 4 8-4M4 17l8 4 8-4" />
+    </>
+  ),
+  diff: (
+    <>
+      <path d="M12 3v18M5 7h14M3 15l2-8 2 8a2.5 2.5 0 01-4 0zM17 15l2-8 2 8a2.5 2.5 0 01-4 0z" />
+    </>
+  ),
+  recipes: (
+    <>
+      <path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z" />
+      <path d="M5 17a3 3 0 013-3h11M9 8h6" />
+    </>
+  ),
+  how: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2.5 0 015 .5c0 1.7-2.5 2-2.5 3.5M12 17h.01" />
+    </>
+  ),
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="19" cy="12" r="1.6" />
+    </>
+  ),
   rules: (
     <>
       <circle cx="12" cy="12" r="3" />

@@ -133,6 +133,8 @@ export interface WasteRow {
   qty: number;
   reason: WasteReason;
   loggedBy: string;
+  /** When it was logged (ISO). Used to place waste between two counts. */
+  createdAt?: string;
 }
 
 export interface SalesRow {
@@ -162,4 +164,153 @@ export interface AppData {
   sales: SalesRow[];
   salesPeriod: string | null;
   lpoNext: number;
+  /** Ingredients, recipes, modifier rules and sync status (phase 2). */
+  book: StockBook;
+}
+
+// ---------------------------------------------------------------- phase 2: Loyverse, recipes, stock
+
+/** One shop. Everything new carries it so a second branch can be added later. */
+export const LOCATION_ID = 'business-bay';
+
+export type IngredientUnit = 'g' | 'ml' | 'pcs';
+
+/** Something a sale uses up: beans, milk, a cup, a sandwich. Always in g, ml or pieces. */
+export interface Ingredient {
+  id: string;
+  name: string;
+  unit: IngredientUnit;
+  /**
+   * How a count becomes this ingredient, in its unit. Count item ids with a factor,
+   * e.g. "1000*bar-full-fat-milk" (litres counted, ml used). Empty: not counted.
+   */
+  countFrom: string;
+  /** Allowed difference before an alert, in percent. Pieces: 0 (any difference). */
+  limitPct: number;
+  /** Shown when a setting still needs filling in, e.g. pieces per sleeve. */
+  note: string | null;
+  active: boolean;
+  sort: number;
+}
+
+/** "milk": replaced by the milk chosen on the sale. "coffee": comes from the bean chosen. */
+export type LineRole = 'milk' | 'coffee';
+
+export interface RecipeLine {
+  /** Ingredient used, or for role lines the default (full fat milk, Brazil beans). */
+  ingredientId?: string;
+  /** Use part of another menu item's recipe instead, e.g. 0.1 of Hibiscus Iced. */
+  recipeOf?: string;
+  qty: number;
+  role?: LineRole;
+}
+
+export interface Recipe {
+  /** Loyverse item id (or "name:<item name>" before the item is synced). */
+  id: string;
+  itemName: string;
+  lines: RecipeLine[];
+  /** Cups, lids and straws used only for take-away. */
+  takeaway: { ingredientId: string; qty: number }[];
+  /** Modifier groups to ignore on this item (bundles ignore the Classic Coffee choice). */
+  ignoreGroups: string[];
+  note: string | null;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export type ModifierEffect =
+  | { type: 'milk'; ingredientId: string }
+  | { type: 'bean'; ingredientId: string }
+  | { type: 'add'; qty: number; ingredientId?: string; role?: LineRole; byItem?: Record<string, string> }
+  | { type: 'spread'; qty: number; among: string[] }
+  | { type: 'recipeOf' }
+  | { type: 'swapCup'; from: string; to: string }
+  | { type: 'none' };
+
+/** What a modifier choice does, e.g. Alternative Milk: Oat replaces the milk with oat milk. */
+export interface ModifierRule {
+  id: string;
+  /** Modifier group name as in Loyverse, or "*" for any group. */
+  group: string;
+  /** Choice name as in Loyverse, or "*" for any choice in the group. */
+  option: string;
+  effects: ModifierEffect[];
+  note: string | null;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface RecipeChange {
+  id: string;
+  kind: 'recipe' | 'modifier' | 'ingredient';
+  targetId: string;
+  label: string;
+  before: unknown;
+  after: unknown;
+  changedBy: string;
+  changedAt: string;
+}
+
+export interface SaleModifier {
+  group: string;
+  option: string;
+}
+
+export interface SaleLine {
+  idx: number;
+  itemId: string | null;
+  itemName: string;
+  variantName: string | null;
+  qty: number;
+  /** Money: only filled for the owner. */
+  total: number | null;
+  modifiers: SaleModifier[];
+}
+
+/** A Loyverse receipt. Times are stored in UTC and shown in Dubai time. */
+export interface Receipt {
+  number: string;
+  type: 'SALE' | 'REFUND';
+  /** When it was sold (receipt_date), ISO UTC. */
+  at: string;
+  businessDate: string;
+  dining: string | null;
+  cancelled: boolean;
+  total: number | null;
+  employee: string | null;
+  lines: SaleLine[];
+}
+
+export interface SyncRun {
+  id: string;
+  kind: 'loyverse' | 'sheet';
+  startedAt: string;
+  finishedAt: string | null;
+  receipts: number;
+  ok: boolean;
+  message: string;
+  latestReceiptAt: string | null;
+}
+
+export interface LoyverseItem {
+  id: string;
+  name: string;
+  category: string | null;
+}
+
+export interface SalesReport {
+  totals: { receipts: number; sales: number; items: number };
+  byDay: { date: string; sales: number; receipts: number }[];
+  byHour: { hour: number; sales: number; receipts: number }[];
+  byItem: { item: string; qty: number; sales: number }[];
+  byModifier: { group: string; option: string; qty: number; sales: number }[];
+}
+
+export interface StockBook {
+  ingredients: Ingredient[];
+  recipes: Recipe[];
+  modifierRules: ModifierRule[];
+  loyverseItems: LoyverseItem[];
+  syncRuns: SyncRun[];
 }

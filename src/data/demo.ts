@@ -2,12 +2,14 @@
  * Demo mode: runs before Supabase is connected. Uses the prototype data and keeps
  * changes in this browser only, so you can try every screen safely.
  */
-import type { AppData } from '../types';
+import type { AppData, RecipeChange } from '../types';
 import type { Store } from './store';
-import { demoData } from './seed';
+import { demoBook, demoData } from './seed';
+import { demoReceipts, DEMO_LY_ITEMS } from './demoLoyverse';
+import { salesFromReceipts } from '../lib/salesReport';
 import { businessDate } from '../lib/time';
 
-const KEY = 'titlebrew-demo-v1';
+const KEY = 'titlebrew-demo-v2';
 
 function read(): AppData | null {
   try {
@@ -15,7 +17,8 @@ function read(): AppData | null {
     if (!s) return null;
     const d = JSON.parse(s) as AppData & { _day?: string };
     // Start fresh each new business day so the demo always shows "today".
-    return d._day === businessDate() ? d : null;
+    if (d._day !== businessDate()) return null;
+    return d.book ? d : { ...d, book: demoBook() };
   } catch {
     return null;
   }
@@ -39,6 +42,9 @@ export function resetDemo() {
 
 export function demoStore(): Store {
   let data: AppData = read() ?? demoData(businessDate());
+  const history: RecipeChange[] = [];
+  const logChange = (kind: RecipeChange['kind'], targetId: string, label: string, before: unknown, after: unknown, by: string) =>
+    history.unshift({ id: crypto.randomUUID(), kind, targetId, label, before, after, changedBy: by, changedAt: new Date().toISOString() });
   const save = () => write(data);
   const upsert = <T,>(list: T[], item: T, same: (a: T) => boolean) => {
     const i = list.findIndex(same);
@@ -86,6 +92,44 @@ export function demoStore(): Store {
     async importSales(rows, period) {
       data = { ...data, sales: rows, salesPeriod: period };
       save();
+    },
+    async loadReceipts(fromIso, toIso) {
+      return demoReceipts(fromIso, toIso < new Date().toISOString() ? toIso : new Date().toISOString());
+    },
+    async salesReport(from, to) {
+      return salesFromReceipts(demoReceipts(`${from}T00:00:00.000Z`, `${to}T23:59:59.999Z`));
+    },
+    async loyverseMenu() {
+      return DEMO_LY_ITEMS;
+    },
+    async saveIngredient(i) {
+      const before = data.book.ingredients.find((x) => x.id === i.id);
+      data = { ...data, book: { ...data.book, ingredients: upsert(data.book.ingredients, i, (x) => x.id === i.id) } };
+      logChange('ingredient', i.id, i.name, before ?? null, i, 'Rimma');
+      save();
+    },
+    async saveRecipes(list) {
+      let recipes = data.book.recipes;
+      for (const r of list) {
+        logChange('recipe', r.id, r.itemName, recipes.find((x) => x.id === r.id) ?? null, r, r.updatedBy);
+        recipes = upsert(recipes, r, (x) => x.id === r.id);
+      }
+      data = { ...data, book: { ...data.book, recipes } };
+      save();
+    },
+    async saveModifierRule(r) {
+      logChange('modifier', r.id, `${r.group}: ${r.option}`, data.book.modifierRules.find((x) => x.id === r.id) ?? null, r, r.updatedBy);
+      data = { ...data, book: { ...data.book, modifierRules: upsert(data.book.modifierRules, r, (x) => x.id === r.id) } };
+      save();
+    },
+    async seedStock() {
+      /* demo already has the starting setup */
+    },
+    async saveAlias() {
+      /* demo: the Google Sheet is not connected */
+    },
+    async recipeHistory(targetId) {
+      return history.filter((h) => !targetId || h.targetId === targetId);
     },
   };
 }

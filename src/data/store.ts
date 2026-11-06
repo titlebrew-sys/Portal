@@ -1,4 +1,5 @@
-import type { AppData, CountItem, CountRow, CountSession, Me, Order, Rule, SalesRow, Supplier, WasteRow } from '../types';
+import type { AppData, CountItem, CountRow, CountSession, Ingredient, Me, ModifierRule, Order, Receipt, Recipe, RecipeChange, Rule, SalesReport, SalesRow, Supplier, WasteRow } from '../types';
+import type { LyItem } from '../lib/importRecipes';
 
 export type NewOrder = Omit<Order, 'id' | 'lpoNumber' | 'receivedAt' | 'receivedBy' | 'received'>;
 
@@ -17,6 +18,24 @@ export interface Store {
   importSales(rows: SalesRow[], period: string): Promise<void>;
   /** Live only: copy the prototype setup (items, suppliers, rules) into an empty database. */
   loadStartingData?(): Promise<void>;
+
+  // ---- phase 2: Loyverse, recipes, stock
+  /** Receipts sold between two moments (ISO UTC). Money only for the owner. */
+  loadReceipts(fromIso: string, toIso: string): Promise<Receipt[]>;
+  /** Sales by day, hour, item and choice for business days from..to. Owner only. */
+  salesReport(from: string, to: string): Promise<SalesReport | null>;
+  /** The Loyverse menu with components, for building starting recipes. */
+  loyverseMenu(): Promise<LyItem[]>;
+  saveIngredient(i: Ingredient): Promise<void>;
+  saveRecipes(r: Recipe[]): Promise<void>;
+  saveModifierRule(r: ModifierRule): Promise<void>;
+  /** Copy the starting ingredients and modifier rules (only the ones missing). */
+  seedStock(ingredients: Ingredient[], rules: ModifierRule[]): Promise<void>;
+  recipeHistory(targetId?: string): Promise<RecipeChange[]>;
+  /** Sheet item name -> portal count item, for names the Google Sheet spells differently. */
+  saveAlias(name: string, itemId: string): Promise<void>;
+  /** Ask the Loyverse sync to run now (owner). */
+  syncNow?(): Promise<string>;
 }
 
 export interface Auth {

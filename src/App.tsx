@@ -15,6 +15,11 @@ import { Receive } from './views/Receive';
 import { Waste } from './views/Waste';
 import { Sales } from './views/Sales';
 import { Rules } from './views/Rules';
+import { Stock } from './views/Stock';
+import { Differences } from './views/Differences';
+import { Recipes } from './views/Recipes';
+import { HowItWorks } from './views/HowItWorks';
+import { More } from './views/More';
 
 const VIEWS = [
   { id: 'home', label: 'Today', icon: 'home', staff: true },
@@ -22,8 +27,13 @@ const VIEWS = [
   { id: 'orders', label: 'Orders', icon: 'orders', staff: true },
   { id: 'receive', label: 'Receive', icon: 'receive', staff: true },
   { id: 'waste', label: 'Waste', icon: 'waste', staff: true },
+  { id: 'stock', label: 'Stock', icon: 'stock', staff: true },
+  { id: 'differences', label: 'Differences', icon: 'diff', staff: true },
+  { id: 'recipes', label: 'Recipes', icon: 'recipes', staff: true },
   { id: 'sales', label: 'Sales', icon: 'sales', staff: false },
   { id: 'rules', label: 'Items and rules', icon: 'rules', staff: false },
+  { id: 'how', label: 'How it works', icon: 'how', staff: true },
+  { id: 'more', label: 'More', icon: 'more', staff: true },
 ] as const;
 type ViewId = (typeof VIEWS)[number]['id'];
 
@@ -44,7 +54,7 @@ export default function App() {
   const [checked, setChecked] = useState(!live);
   const meRef = useRef(me);
   meRef.current = me;
-  const store = useMemo<Store>(() => (live ? liveStore(() => meRef.current?.role === 'owner') : demoStore()), [live]);
+  const store = useMemo<Store>(() => (live ? liveStore(() => meRef.current?.role === 'owner', () => meRef.current?.name ?? 'Owner') : demoStore()), [live]);
 
   // Who is signed in (live mode)
   useEffect(() => {
@@ -126,8 +136,8 @@ export default function App() {
     );
   if (!data) return <div className="login"><p className="sub">Loading…</p></div>;
 
-  const vis = VIEWS.filter((v) => me.role === 'owner' || v.staff);
-  const cur: ViewId = (vis.find((v) => v.id === hash)?.id ?? 'home') as ViewId;
+  const vis = VIEWS.filter((v) => v.id !== 'more' && (me.role === 'owner' || v.staff));
+  const cur: ViewId = (hash === 'more' ? 'more' : vis.find((v) => v.id === hash)?.id ?? 'home') as ViewId;
   const due = plan(data, today).filter((p) => p.lines.some((l) => l.qty > 0) && !data.orders.some((o) => o.businessDate === today && o.supplierId === p.supplier.id)).length;
 
   const ctx: Ctx = {
@@ -135,7 +145,8 @@ export default function App() {
     setDemoRole: store.mode === 'demo' ? (r) => setMe({ name: r === 'owner' ? 'Rimma' : 'Staff', role: r }) : undefined,
   };
 
-  const View = { home: Today, count: Count, orders: Orders, receive: Receive, waste: Waste, sales: Sales, rules: Rules }[cur];
+  const View = { home: Today, count: Count, orders: Orders, receive: Receive, waste: Waste, sales: Sales, rules: Rules, stock: Stock, differences: Differences, recipes: Recipes, how: HowItWorks, more: () => <More views={vis} /> }[cur];
+  const tabs = [...vis.slice(0, 4), VIEWS.find((v) => v.id === 'more')!];
 
   return (
     <AppCtx.Provider value={ctx}>
@@ -182,8 +193,8 @@ export default function App() {
         </main>
       </div>
       <nav className="tabbar" aria-label="Main">
-        {vis.slice(0, 5).map((v) => (
-          <a key={v.id} href={'#' + v.id} aria-current={v.id === cur ? 'page' : undefined}>
+        {tabs.map((v) => (
+          <a key={v.id} href={'#' + v.id} aria-current={v.id === cur || (v.id === 'more' && !tabs.slice(0, 4).some((t) => t.id === cur)) ? 'page' : undefined}>
             <Icon name={v.icon} size={22} />
             <span>{v.label}</span>
           </a>

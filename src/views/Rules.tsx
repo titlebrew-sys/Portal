@@ -4,6 +4,7 @@ import { Head, MobileWho, parseNum } from '../components';
 import type { Area, CountItem, Rule, RuleKind, Supplier } from '../types';
 import { MIN_LEARN_DAYS, fmtNum, indexCounts, learnedUse, parseCountFrom } from '../lib/ordering';
 import { businessDate } from '../lib/time';
+import { Ingredients, SyncPanel } from './IngredientsSetup';
 
 const DESC: Record<RuleKind, string> = {
   TARGET: 'Tops up to a target every day and learns daily use',
@@ -17,7 +18,7 @@ const numOrNull = (s: string) => parseNum(s);
 
 export function Rules() {
   const { data, store, run, today } = useApp();
-  const [tab, setTab] = useState<'rules' | 'suppliers' | 'items'>('rules');
+  const [tab, setTab] = useState<'rules' | 'suppliers' | 'items' | 'ingredients'>('rules');
   const [editRule, setEditRule] = useState<Rule | null>(null);
   const [editSup, setEditSup] = useState<Supplier | null>(null);
   const [editItem, setEditItem] = useState<CountItem | null>(null);
@@ -31,6 +32,7 @@ export function Rules() {
     <>
       <MobileWho />
       <Head eyebrow="Setup" title="Items and order rules" sub="Your rules from the order sheet. Edit them here, without touching formulas. Tap a row to change it." />
+      <SyncPanel />
       {empty && store.loadStartingData && (
         <div className="banner info">
           <span><b>Your database is empty.</b> Copy in the items, suppliers and rules from the prototype to start.</span>
@@ -49,6 +51,7 @@ export function Rules() {
         <button className="btn sm" aria-pressed={tab === 'rules'} onClick={() => setTab('rules')}>Order rules</button>
         <button className="btn sm" aria-pressed={tab === 'suppliers'} onClick={() => setTab('suppliers')}>Suppliers</button>
         <button className="btn sm" aria-pressed={tab === 'items'} onClick={() => setTab('items')}>Count items</button>
+        <button className="btn sm" aria-pressed={tab === 'ingredients'} onClick={() => setTab('ingredients')}>Ingredients</button>
       </div>
 
       {tab === 'rules' && (
@@ -100,6 +103,8 @@ export function Rules() {
           </div>
         </>
       )}
+
+      {tab === 'ingredients' && <Ingredients />}
 
       {tab === 'items' && (
         <>
