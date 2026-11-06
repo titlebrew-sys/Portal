@@ -121,15 +121,17 @@ export function SyncLine({ runs }: { runs: SyncRun[] }) {
     const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
     return m < 1 ? 'just now' : m < 60 ? `${m} minute${m === 1 ? '' : 's'} ago` : m < 1440 ? `${Math.round(m / 60)} hours ago` : `${Math.round(m / 1440)} days ago`;
   };
+  const stopped = (r: SyncRun) => !r.finishedAt && Date.now() - Date.parse(r.startedAt) > 3 * 60_000;
+  const lyText = (r: SyncRun) => (stopped(r) ? 'stopped before finishing, the next run carries on' : r.message);
   const latest = runs.filter((r) => r.kind === 'loyverse' && r.latestReceiptAt).map((r) => r.latestReceiptAt!).sort().pop();
   return (
     <div className="rows">
       <div className="r">
         <div className="t">
           <b>Loyverse sales</b>
-          <span>{ly ? `Last checked ${ago(ly.startedAt)}: ${ly.message}` : 'Not connected yet'}{latest ? `. Newest sale ${whenText(latest)}` : ''}</span>
+          <span>{ly ? `Last checked ${ago(ly.startedAt)}: ${lyText(ly)}` : 'Not connected yet'}{latest ? `. Newest sale ${whenText(latest)}` : ''}</span>
         </div>
-        <span className={'pill ' + (!ly ? 'p-mute' : ly.ok ? 'p-good' : 'p-bad')}>{!ly ? 'Off' : ly.ok ? 'Working' : 'Problem'}</span>
+        <span className={'pill ' + (!ly ? 'p-mute' : stopped(ly) ? 'p-warn' : ly.ok ? 'p-good' : 'p-bad')}>{!ly ? 'Off' : stopped(ly) ? 'Catching up' : ly.ok ? 'Working' : 'Problem'}</span>
       </div>
       <div className="r">
         <div className="t"><b>Google Sheet counts</b><span>{sheet ? `Last received ${ago(sheet.startedAt)}: ${sheet.message}` : 'Nothing received yet'}</span></div>

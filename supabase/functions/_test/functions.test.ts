@@ -28,19 +28,30 @@ Deno.test({ name: 'loyverse-sync: menu, new receipts, and 2-year history in resu
     return {};
   }, calls);
   const run = await loadFunction('../loyverse-sync/index.ts', { LOYVERSE_TOKEN: 'x', LOYVERSE_API_BASE: 'http://fake.loyverse/v1.0/' });
-  const res = await (await run(new Request('http://x'))).json();
-  assert(res.ok, res.message);
+  // The browser's permission check is answered at once and does not start a sync
+  const pre = await run(new Request('http://x', { method: 'OPTIONS' }));
+  assertEquals([pre.status, pre.headers.get('access-control-allow-origin')], [200, '*']);
+  assertEquals(calls.length, 0);
+  // Runs are small: keep running until the history is done, as the 5-minute schedule would
+  let res: any;
+  for (let i = 0; i < 40; i++) {
+    res = await (await run(new Request('http://x', { method: 'POST' }))).json();
+    assert(res.ok, res.message);
+    if (tables.get('sync_state')!.find((s) => s.key === 'backfill')?.value.done) break;
+  }
+  assert(tables.get('sync_runs')!.length > 1, 'history took more than one small run');
   assertEquals(tables.get('loyverse_items')!.length, 1);
   assertEquals(tables.get('receipts')!.length, 1003);
   assertEquals(tables.get('receipt_line_modifiers')!.length, 1003);
   const r = tables.get('receipts')!.find((x) => x.receipt_number === '1-5002')!;
   assert(r.cancelled_at, 'cancelled time kept so it is ignored later');
   assertEquals(tables.get('sync_state')!.find((s) => s.key === 'backfill')!.value.done, true);
-  const log = tables.get('sync_runs')!.at(-1)!;
-  assertEquals([log.ok, log.receipts], [true, 1003]);
+  const runs = tables.get('sync_runs')!;
+  assert(runs.every((r) => r.ok), 'every run finished well');
+  assert(runs.length > 1, 'history took more than one small run');
   // Second run: history is done, only new receipts are asked for; saving again does not duplicate
   calls.length = 0;
-  await (await run(new Request('http://x'))).json();
+  await (await run(new Request('http://x', { method: 'POST' }))).json();
   assertEquals(tables.get('receipts')!.length, 1003);
   assert(calls.every((c) => !c.includes('created_at_min')), 'no more history requests');
 });
@@ -49,7 +60,7 @@ Deno.test({ name: 'loyverse-sync: a failure is logged in plain words', sanitizeO
   tables.clear();
   installFetch(() => ({}));
   const run = await loadFunction('../loyverse-sync/index.ts', { LOYVERSE_TOKEN: '', LOYVERSE_API_BASE: 'http://fake.loyverse/v1.0/' });
-  const res = await run(new Request('http://x'));
+  const res = await run(new Request('http://x', { method: 'POST' }));
   assertEquals(res.status, 500);
   assertEquals(tables.get('sync_runs')!.at(-1)!.message, 'The Loyverse token is missing (Edge Function secret LOYVERSE_TOKEN).');
 });

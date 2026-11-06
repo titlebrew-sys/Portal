@@ -10,8 +10,17 @@ const API = Deno.env.get('LOYVERSE_API_BASE') || 'https://api.loyverse.com/v1.0/
 const LOCATION = 'business-bay';
 const BACKFILL_FROM = '2024-11-05T00:00:00.000Z';
 const WINDOW_DAYS = 3;
-const TIME_BUDGET_MS = 40_000;
+// Small runs: Supabase stops a function that works too hard in one go. History fills in over several runs.
+const TIME_BUDGET_MS = 25_000;
+const MAX_PAGES_PER_RUN = 10;
 const PAGE = 250;
+
+// The portal's "Check Loyverse now" button calls this from the browser, which first asks permission (OPTIONS).
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 const TOKEN = Deno.env.get('LOYVERSE_TOKEN') ?? '';
@@ -128,8 +137,10 @@ async function receiptPage(params: Record<string, string>, cursor: string) {
   return { count: (page.receipts ?? []).length, cursor: (page.cursor as string) ?? '', latest };
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const started = Date.now();
+  let pages = 0;
   const startedAt = new Date().toISOString();
   const { data: run } = await db.from('sync_runs').insert({ location_id: LOCATION, kind: 'loyverse', started_at: startedAt, message: 'Running' }).select('id').single();
   let fetched = 0;
@@ -149,20 +160,23 @@ Deno.serve(async () => {
     let cursor = '';
     for (let i = 0; i < 40; i++) {
       const p = await receiptPage({ updated_at_min: since }, cursor);
+      pages++;
       fetched += p.count;
       if (p.latest && (!latest || p.latest > latest)) latest = p.latest;
       cursor = p.cursor;
-      if (!cursor || timeLeft() < 5000) break;
+      if (!cursor || timeLeft() < 5000 || pages >= MAX_PAGES_PER_RUN) break;
     }
     if (!cursor) await setState('live', { ...live, since: startedAt });
+    else await setState('live', live); // remember the first run time even if this run stopped early
 
     // 3. Two years of history, a few days at a time, picking up where the last run stopped
     const back = (await getState('backfill')) ?? { windowStart: BACKFILL_FROM, cursor: '', done: false };
     let backCount = 0;
-    while (!back.done && timeLeft() > 8000) {
+    while (!back.done && timeLeft() > 8000 && pages < MAX_PAGES_PER_RUN) {
       const until = live.firstRun as string;
       const windowEnd = new Date(Math.min(Date.parse(back.windowStart) + WINDOW_DAYS * 864e5, Date.parse(until))).toISOString();
       const p = await receiptPage({ created_at_min: back.windowStart, created_at_max: windowEnd }, back.cursor);
+      pages++;
       backCount += p.count;
       back.cursor = p.cursor;
       if (!p.cursor) {
@@ -176,10 +190,10 @@ Deno.serve(async () => {
 
     const message = `${fetched} receipts${notes.length ? ' · ' + notes.join(' · ') : ''}`;
     await db.from('sync_runs').update({ finished_at: new Date().toISOString(), receipts: fetched, ok: true, message, latest_receipt_at: latest }).eq('id', run?.id);
-    return Response.json({ ok: true, receipts: fetched, message });
+    return Response.json({ ok: true, receipts: fetched, message }, { headers: CORS });
   } catch (e) {
     const message = (e as Error).message;
     await db.from('sync_runs').update({ finished_at: new Date().toISOString(), receipts: fetched, ok: false, message, latest_receipt_at: latest }).eq('id', run?.id);
-    return Response.json({ ok: false, message }, { status: 500 });
+    return Response.json({ ok: false, message }, { status: 500, headers: CORS });
   }
 });
