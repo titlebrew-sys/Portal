@@ -92,10 +92,19 @@ Deno.serve(async (req) => {
           location_id: LOCATION, source_key: `sheet|${d}|${shift}|${it.id}`,
         });
     }
-    if (counts.length) {
-      const { error } = await db.from('counts').upsert(counts, { onConflict: 'business_date,shift,item_id' });
+    // The sheet re-sends at 5pm and 11pm. A count whose numbers did not change keeps the time it was
+    // first saved, so sales between the real count and the re-send are not counted against it.
+    const { data: before } = await db.from('counts').select('*').eq('business_date', d).eq('shift', shift);
+    const same = (a: any, c: any) =>
+      a && ['qty', 'old_qty', 'new_qty', 'frozen_qty'].every((k) => (a[k] === null || a[k] === undefined ? null : Number(a[k])) === (c[k] ?? null)) &&
+      (a.exp_old ?? null) === c.exp_old && (a.exp_new ?? null) === c.exp_new;
+    const changed = counts.filter((c) => !same((before ?? []).find((x: any) => x.item_id === c.item_id), c));
+    if (changed.length) {
+      const { error } = await db.from('counts').upsert(changed, { onConflict: 'business_date,shift,item_id' });
       if (error) errors.push(`${b.area} shift ${b.shift}: ${error.message}`);
-      else saved += counts.length;
+      else saved += changed.length;
+    }
+    if (counts.length) {
       const total = (items ?? []).filter((i: any) => i.area === b.area).length;
       await db.from('count_sessions').upsert(
         { business_date: d, shift, area: b.area, saved_by: who, saved_at: savedAt, done: counts.length, total, location_id: LOCATION },
@@ -109,7 +118,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  const parts = [`${saved} counts saved`];
+  const parts = [`${saved} counts saved or changed`];
   if (wasteSaved) parts.push(`${wasteSaved} thrown away`);
   if (unknown.size) parts.push(`names not matched: ${[...unknown].join(', ')}`);
   if (errors.length) parts.push(errors.join('; '));

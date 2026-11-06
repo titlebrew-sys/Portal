@@ -74,7 +74,16 @@ Deno.test({ name: 'sheet-counts: secret required, counts saved once, kitchen tot
   assertEquals((await post('wrong')).status, 401);
   const res = await (await post('s3cret')).json();
   assertEquals([res.saved, res.waste, res.unknown], [2, 1, ['Mystery syrup']]);
-  await post('s3cret'); // sent again: nothing doubles
+  const firstTime = tables.get('counts')!.find((c) => c.item_id === 'bar-brazil-beans')!.saved_at;
+  // Sent again later (5pm re-save) with the same numbers: nothing doubles and the time is kept
+  body.batches[0].saved_at = '2026-11-06T13:00:00Z';
+  const again = await (await post('s3cret')).json();
+  assertEquals(again.saved, 0);
+  assertEquals(tables.get('counts')!.find((c) => c.item_id === 'bar-brazil-beans')!.saved_at, firstTime);
+  // A changed number is saved with the new time
+  body.batches[0].rows[0].qty = 11500;
+  assertEquals((await (await post('s3cret')).json()).saved, 1);
+  assertEquals(tables.get('counts')!.find((c) => c.item_id === 'bar-brazil-beans')!.saved_at, '2026-11-06T13:00:00.000Z');
   const counts = tables.get('counts')!;
   assertEquals(counts.length, 2);
   assertEquals(counts.find((c) => c.item_id === 'kit-almond-croissant')!.qty, 23);
