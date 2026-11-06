@@ -50,7 +50,7 @@ export function installFetch(loyverse: LvHandler, calls: string[] = []) {
     const url = new URL(req.url);
     if (url.host === 'fake.loyverse') {
       calls.push(url.pathname.replace('/v1.0/', '') + url.search);
-      return Response.json(loyverse(url.pathname.replace('/v1.0/', ''), url.searchParams));
+      return Response.json(await loyverse(url.pathname.replace('/v1.0/', ''), url.searchParams));
     }
     const text = req.method === 'GET' ? '' : await req.text();
     return rest(url, req.method, text ? JSON.parse(text) : null, req.headers);

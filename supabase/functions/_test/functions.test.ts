@@ -102,3 +102,25 @@ Deno.test({ name: 'sheet-counts: secret required, counts saved once, kitchen tot
   assertEquals(tables.get('waste')!.length, 1);
   assert(tables.get('sync_runs')!.at(-1)!.message.includes('names not matched: Mystery syrup'));
 });
+
+Deno.test({ name: 'loyverse-sync: a list that never ends and a hanging step do not run forever', sanitizeOps: false, sanitizeResources: false }, async () => {
+  tables.clear();
+  let employeeCalls = 0;
+  installFetch((path) => {
+    if (path === 'employees') { employeeCalls++; return { employees: [], cursor: 'same-cursor-forever' }; }
+    if (path === 'items') return { items: [] };
+    if (path === 'receipts') return { receipts: [] };
+    return { [path]: [] };
+  });
+  const run = await loadFunction('../loyverse-sync/index.ts', { LOYVERSE_TOKEN: 'x', LOYVERSE_API_BASE: 'http://fake.loyverse/v1.0/', SYNC_DEADLINE_MS: '300' });
+  const res = await (await run(new Request('http://x', { method: 'POST' }))).json();
+  assert(res.ok, res.message);
+  assertEquals(employeeCalls, 1);
+  // A step that hangs: the run stops tidily and says where it was
+  tables.clear();
+  installFetch((path) => (path === 'receipts' ? new Promise(() => {}) : { [path]: [] }) as any);
+  const res2 = await (await run(new Request('http://x', { method: 'POST' }))).json();
+  assertEquals(res2.ok, false);
+  assert(res2.message.includes('while reading new receipts'), res2.message);
+  assert(tables.get('sync_runs')!.at(-1)!.message.includes('Stopped after'), 'logged for the portal');
+});
