@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../ctx';
 import { Head, MobileWho } from '../components';
-import { addDays, fmtDubaiTime, fmtShortDate } from '../lib/time';
+import { addDays, fmtShortDate } from '../lib/time';
 import { steps, type Step } from '../lib/stock';
 import { useStockData } from '../lib/useStock';
 import { downloadBytes, makeXlsx } from '../lib/xlsxWrite';
@@ -43,7 +43,7 @@ export function Differences() {
   return (
     <>
       <MobileWho />
-      <Head eyebrow="Stock" title="Differences" sub="Difference = counted − expected. Tap a line to see how it was worked out, down to each receipt." />
+      <Head eyebrow="Stock" title="Differences" sub="Closing count compared with the closing count before it, using the whole day's sales, deliveries and waste. Shift 1 is only for orders. Tap a line to see how it was worked out, down to each receipt." />
       <DateRange from={from} to={to} today={today} onChange={(f, t) => { setFrom(f); setTo(t); }} />
       <div className="banner info"><span>For now: sales come live from Loyverse for <b>yesterday and today</b>. Counts come from your Google Sheet. Deliveries are taken from the sheet's orders, as arriving the next morning.</span></div>
       <div className="fieldset noprint" style={{ alignItems: 'flex-end' }}>
@@ -67,7 +67,7 @@ export function Differences() {
               <tbody>
                 {rows.map((r, i) => [
                   <tr key={i} className="clickable" onClick={() => setOpen(open === i ? null : i)}>
-                    <td style={{ whiteSpace: 'nowrap' }}><b>{fmtShortDate(r.step.to.businessDate)}</b><span className="why">{r.ing.countFrom.includes('wk-') ? 'Weekly' : `Shift ${r.step.to.shift}`}, {fmtDubaiTime(r.step.to.at)}</span></td>
+                    <td style={{ whiteSpace: 'nowrap' }}><b>{fmtShortDate(r.step.to.businessDate)}</b><span className="why">{r.ing.countFrom.includes('wk-') ? 'Weekly count' : 'Closing count'}</span></td>
                     <td>{r.ing.name}</td>
                     <td className="n">{amt(r.step.expected, r.ing.unit)}</td>
                     <td className="n">{amt(r.step.counted, r.ing.unit)}</td>

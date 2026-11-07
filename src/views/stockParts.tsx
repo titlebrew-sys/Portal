@@ -14,8 +14,14 @@ export const amt = (qty: number | null | undefined, unit: string) => {
 export const signed = (qty: number, unit: string) => (qty > 0 ? '+' : qty < 0 ? '−' : '') + amt(Math.abs(qty), unit);
 
 export const whenText = (iso: string) => `${fmtShortDate(new Date(Date.parse(iso)).toISOString().slice(0, 10))} ${fmtDubaiTime(iso)}`;
-export const countLabel = (s: { businessDate: string; shift: number; at: string }, weekly = false) =>
-  `${weekly ? 'Weekly count' : `Shift ${s.shift}`}, ${fmtShortDate(s.businessDate)} ${fmtDubaiTime(s.at)}`;
+export const countLabel = (s: { businessDate: string; shift: number }, weekly = false) =>
+  `${weekly ? 'Weekly count' : s.shift === 2 ? 'Closing count' : `Shift ${s.shift}`}, ${fmtShortDate(s.businessDate)}`;
+
+/** "Sat 7 Nov" or "Fri 6 Nov to Sat 7 Nov": the business days a difference covers. */
+export const daysText = (step: Step) => {
+  const first = addDays(step.from.businessDate, 1);
+  return first === step.to.businessDate ? fmtShortDate(first) : `${fmtShortDate(first)} to ${fmtShortDate(step.to.businessDate)}`;
+};
 
 /** From/to date picker with quick choices. Dates are business days (4am to 4am Dubai). */
 export function DateRange({ from, to, onChange, today }: { from: string; to: string; today: string; onChange: (from: string, to: string) => void }) {
@@ -90,6 +96,7 @@ export function StepCard({ ing, step, weekly = false }: { ing: Ingredient; step:
       </div>
       <div className="breakdown">
         <div><span>Last count ({countLabel(step.from, weekly)}, {step.from.countedBy})</span><Tap label={amt(step.from.value, u)}><CountParts parts={step.from.parts} unit={u} /></Tap></div>
+        <p className="sub" style={{ margin: 0 }}>Sales, deliveries and waste of {daysText(step)} (whole day, 4am to 4am).</p>
         <div><span>+ arrived</span>
           {step.arrived.length ? <Tap label={amt(step.arrivedTotal, u)}>{step.arrived.map((a, i) => <p key={i} className="sub" style={{ margin: 0 }}>{whenText(a.at)}: {amt(a.qty, u)} from {a.supplier}</p>)}</Tap> : <b>{amt(0, u)}</b>}
         </div>

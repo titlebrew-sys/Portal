@@ -2,13 +2,16 @@
  * Expected stock and differences, in plain words:
  *   Expected stock = last count + arrived - used by sales - thrown away
  *   Difference     = counted - expected
- * For each count (Shift 1, Shift 2 or weekly) the window is the time between the previous
- * count and this one, using receipt times, delivery times and waste times.
+ * Differences compare closing count with closing count (Shift 2, or the weekly count), and use
+ * everything that happened on the business days in between (4am to 4am Dubai): sales, deliveries
+ * and waste. No clock time of a count is used, because the sheet does not say when a count was made.
+ * Shift 1 is used for ordering, not for differences.
  */
 import type { CountItem, CountRow, Ingredient, Order, Rule, Shift, Supplier, WasteRow } from '../types';
 import { parseCountFrom } from './ordering';
 import { norm } from './catalog';
 import type { LineUsage } from './usage';
+import { addDays } from './time';
 
 export interface Snapshot {
   at: string;
@@ -150,16 +153,37 @@ export function isOver(ing: Ingredient, difference: number, expected: number, co
   return Math.abs(difference) > (ing.limitPct / 100) * Math.max(Math.abs(expected), Math.abs(counted), 1);
 }
 
-/** Every count compared with what was expected since the count before it. */
-export function steps(ing: Ingredient, inp: StockInputs): Step[] {
+/** End of business day d: 4am Dubai the next morning (00:00 UTC). */
+const endOfDay = (d: string) => `${addDays(d, 1)}T00:00:00.000Z`;
+
+/**
+ * One closing count per business day: Shift 2. Items never counted at Shift 2 (weekly items)
+ * use their one count of the day instead.
+ */
+export function closingSnapshots(ing: Ingredient, inp: StockInputs): Snapshot[] {
   const snaps = snapshots(ing, inp);
+  const anyShift2 = snaps.some((s) => s.shift === 2);
+  const byDay = new Map<string, Snapshot>();
+  for (const s of snaps) {
+    if (anyShift2 && s.shift !== 2) continue;
+    const had = byDay.get(s.businessDate);
+    if (!had || s.at > had.at) byDay.set(s.businessDate, s);
+  }
+  return [...byDay.values()].sort((a, b) => (a.businessDate < b.businessDate ? -1 : 1));
+}
+
+/** Each closing count compared with what was expected from the closing count before it. */
+export function steps(ing: Ingredient, inp: StockInputs): Step[] {
+  const snaps = closingSnapshots(ing, inp);
   const out: Step[] = [];
   for (let i = 1; i < snaps.length; i++) {
     const from = snaps[i - 1];
     const to = snaps[i];
-    const arrived = arrivals(ing, inp, from.at, to.at);
-    const used = usedFor(ing, inp, from.at, to.at);
-    const waste = wasteFor(ing, inp, from.at, to.at);
+    const start = endOfDay(from.businessDate);
+    const end = endOfDay(to.businessDate);
+    const arrived = arrivals(ing, inp, start, end);
+    const used = usedFor(ing, inp, start, end);
+    const waste = wasteFor(ing, inp, start, end);
     const expected = r3(from.value + sum(arrived) - sum(used) - sum(waste));
     const difference = r3(to.value - expected);
     out.push({
@@ -180,14 +204,16 @@ export interface Level {
   lastStep: Step | null;
 }
 
+/** Last closing count + everything since the end of that business day. */
 export function currentLevel(ing: Ingredient, inp: StockInputs, now = new Date().toISOString()): Level {
-  const snaps = snapshots(ing, inp);
+  const snaps = closingSnapshots(ing, inp);
   const last = snaps[snaps.length - 1] ?? null;
   const all = steps(ing, inp);
   const lastStep = all[all.length - 1] ?? null;
   if (!last) return { last, arrivedTotal: 0, usedTotal: 0, wasteTotal: 0, expectedNow: null, lastStep };
-  const a = sum(arrivals(ing, inp, last.at, now));
-  const u = sum(usedFor(ing, inp, last.at, now));
-  const w = sum(wasteFor(ing, inp, last.at, now));
+  const start = endOfDay(last.businessDate);
+  const a = sum(arrivals(ing, inp, start, now));
+  const u = sum(usedFor(ing, inp, start, now));
+  const w = sum(wasteFor(ing, inp, start, now));
   return { last, arrivedTotal: a, usedTotal: u, wasteTotal: w, expectedNow: r3(last.value + a - u - w), lastStep };
 }

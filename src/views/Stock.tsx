@@ -35,7 +35,7 @@ export function Stock() {
   return (
     <>
       <MobileWho />
-      <Head eyebrow="Stock" title="Stock by ingredient" sub="Expected stock = last count + arrived − used by sales − thrown away. Tap an ingredient to see every day." />
+      <Head eyebrow="Stock" title="Stock by ingredient" sub="Expected stock = last closing count + arrived − used by sales − thrown away. Tap an ingredient to see every day." />
       <DateRange from={from} to={to} today={today} onChange={(f, t) => { setFrom(f); setTo(t); }} />
       <div className="banner info"><span>For now: sales come live from Loyverse for <b>yesterday and today</b>. Counts come from your Google Sheet. Deliveries are taken from the sheet's orders, as arriving the next morning.</span></div>
       {sd.error && <div className="banner bad">Could not load sales: {sd.error}</div>}
@@ -101,7 +101,7 @@ function StockDetail({ ing, from, to, onBack, onRange }: { ing: Ingredient; from
           </div>
         ) : <p className="sub">{hasCount(ing) ? 'No count yet.' : ing.note ?? 'This ingredient is not linked to a count, so only sales use is shown.'}</p>}
       </div>
-      <h2>Each count</h2>
+      <h2>Each closing count</h2>
       {all.length ? all.map((s, i) => <StepCard key={i} ing={ing} step={s} weekly={weekly} />) : <p className="sub">No two counts in these days to compare yet.</p>}
       <div className="panel">
         <h2>Used by sales, day by day</h2>
