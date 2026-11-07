@@ -34,14 +34,17 @@ function portalBridgeSend(savedBy) {
     var url = props.getProperty('PORTAL_BRIDGE_URL');
     var secret = props.getProperty('PORTAL_BRIDGE_SECRET');
     if (!url || !secret) { portalBridgeLog_('Not sent', 'Add PORTAL_BRIDGE_URL and PORTAL_BRIDGE_SECRET in Script Properties.'); return; }
+    // Deliveries screen: remember today's orders for tomorrow's confirmation (if that file is added)
+    if (typeof deliveriesSnapshotOrders_ === 'function') { try { deliveriesSnapshotOrders_(); } catch (e) { portalBridgeLog_('Deliveries', String(e && e.message ? e.message : e)); } }
+    var deliveries = typeof deliveriesForPortal_ === 'function' ? deliveriesForPortal_() : [];
     var batches = portalBridgeBatches_(savedBy).concat(portalBridgeHistory_());
     var orders = portalBridgeOrders_();
-    if (!batches.length && !orders.length) { portalBridgeLog_('Nothing to send', 'No counts on the sheet yet today.'); return; }
+    if (!batches.length && !orders.length && !deliveries.length) { portalBridgeLog_('Nothing to send', 'No counts on the sheet yet today.'); return; }
     var res = UrlFetchApp.fetch(url, {
       method: 'post',
       contentType: 'application/json',
       headers: { 'x-bridge-secret': secret },
-      payload: JSON.stringify({ batches: batches, orders: orders }),
+      payload: JSON.stringify({ batches: batches, orders: orders, deliveries: deliveries }),
       muteHttpExceptions: true,
     });
     var code = res.getResponseCode();
@@ -61,6 +64,9 @@ function portalBridgeTest() {
     });
     portalBridgeOrders_().forEach(function (o) {
       portalBridgeLog_('Test: orders ' + o.business_date, o.items.length + ' items. First 3: ' + JSON.stringify(o.items.slice(0, 3)));
+    });
+    if (typeof deliveriesForPortal_ === 'function') deliveriesForPortal_().forEach(function (d) {
+      portalBridgeLog_('Test: delivery ' + d.business_date + ' ' + d.kind + ' ' + d.supplier, d.items.length + ' items. ' + JSON.stringify(d.items.slice(0, 3)));
     });
   } catch (e) {
     portalBridgeLog_('Test error', String(e && e.message ? e.message : e));

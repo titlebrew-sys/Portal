@@ -123,7 +123,8 @@ export interface Order {
   sentAt: string;
   receivedAt: string | null;
   receivedBy: string | null;
-  received: { ruleId: string; qty: number }[] | null;
+  /** What arrived: per order rule in order units, or (itemId) per counted item in counting units. */
+  received: { ruleId: string; qty: number; itemId?: string }[] | null;
 }
 
 export interface WasteRow {

@@ -75,3 +75,18 @@ describe('limits and waste', () => {
     expect(snaps.map((s) => s.value)).toEqual([3771.5]); // 8 x 397 + 1 x 595.5
   });
 });
+
+describe('deliveries not ordered (shop purchases)', () => {
+  it('count as arrived at the time they were logged, in counting units', () => {
+    const shop: Order = {
+      id: 'x1', businessDate: '2026-11-06', supplierId: 'sup-shop', lines: [], message: 'Bought from a shop · AED 48', lpoNumber: null, sentBy: 'Rhobel',
+      sentAt: '2026-11-06T07:20:00Z', receivedAt: '2026-11-06T07:20:00Z', receivedBy: 'Rhobel (not ordered)', received: [{ ruleId: '', itemId: 'bar-full-fat-milk', qty: 6 }],
+    };
+    const inp = inputs({
+      counts: [count('bar-full-fat-milk', '2026-11-05', 2, 2, '2026-11-05T17:00:00Z'), count('bar-full-fat-milk', '2026-11-06', 1, 8, '2026-11-06T12:00:00Z')],
+      orders: [shop],
+    });
+    const [s] = steps(milk, inp);
+    expect([s.arrivedTotal, s.expected, s.difference]).toEqual([6000, 8000, 0]); // 2 L + 6 L bought = 8 L counted
+  });
+});

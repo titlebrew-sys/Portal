@@ -94,6 +94,12 @@ export function arrivals(ing: Ingredient, inp: StockInputs, from: string, to: st
   for (const o of inp.orders) {
     if (!o.receivedAt || !o.received || !inWindow(o.receivedAt, from, to)) continue;
     for (const l of o.received) {
+      // Not ordered (bought from a shop, extra from a supplier): amount already in counting units
+      if (l.itemId) {
+        const t = terms.find((x) => x.id === l.itemId);
+        if (t && l.qty) out.push({ at: o.receivedAt, qty: r3(l.qty * t.w), supplier: inp.suppliers.find((s) => s.id === o.supplierId)?.name ?? '', orderId: o.id });
+        continue;
+      }
       const rule = inp.rules.find((r) => r.id === l.ruleId);
       const first = rule ? parseCountFrom(rule.countFrom)[0] : undefined;
       const t = first && terms.find((x) => x.id === first.id);

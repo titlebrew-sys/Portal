@@ -168,3 +168,33 @@ Deno.test({ name: 'sheet-counts: sheet orders become next-morning deliveries, on
   await post();
   assertEquals(tables.get('orders')!.map((o) => o.supplier_id).sort(), ['sup-almarai', 'sup-the-bakery']);
 });
+
+Deno.test({ name: 'sheet-counts: staff-confirmed deliveries replace the assumption and are kept; shop purchases count by item', sanitizeOps: false, sanitizeResources: false }, async () => {
+  tables.clear();
+  tables.set('count_items', [{ id: 'bar-full-fat-milk', name: 'Full fat milk', area: 'Bar', has_batches: false, has_frozen: false }]);
+  tables.set('rules', [{ id: 'rule-turkey', supplier_id: 'sup-the-bakery', order_item: 'Turkey Cheese Croissant', order_unit: 'pcs', pack_size: 1, price: 12.2 }]);
+  tables.set('suppliers', [{ id: 'sup-the-bakery', name: 'The Bakery', lead_days: 1, no_delivery_days: [0] }]);
+  installFetch(() => ({}));
+  const run = await loadFunction('../sheet-counts/index.ts', { BRIDGE_SECRET: 's3cret' });
+  const post = (b: any) => run(new Request('http://x', { method: 'POST', headers: { 'x-bridge-secret': 's3cret' }, body: JSON.stringify(b) }));
+  // Sunday's order (2 croissants), assumed to arrive Monday
+  const sheetOrder = { batches: [], orders: [{ business_date: '2026-11-08', items: [{ order_item: 'Turkey Cheese Croissant', count_qty: 2 }] }] };
+  await post(sheetOrder);
+  // Monday 7:42am: staff confirm only 1 came; and 3 x 2L milk bought from a shop
+  const res = await (await post({ batches: [], deliveries: [
+    { id: 'order|2026-11-09|The Bakery', business_date: '2026-11-09', kind: 'order', supplier: 'The Bakery', order_date: '2026-11-08', at: '2026-11-09T03:42:00Z', by: 'Arsen',
+      paid: null, why: '', note: '', items: [{ order_item: 'Turkey Cheese Croissant', count_item: 'Turkey croissant', ordered: 2, qty: 1, count_qty: 1 }] },
+    { id: 'extra|abc', business_date: '2026-11-09', kind: 'shop', supplier: '', order_date: '2026-11-08', at: '2026-11-09T07:20:00Z', by: 'Rhobel',
+      paid: 48, why: 'Ran out', note: '', items: [{ order_item: 'Full fat milk', count_item: 'Full fat milk', ordered: null, qty: 6, count_qty: 6 }] },
+  ] })).json();
+  assertEquals(res.deliveries, 2);
+  // The sheet sends Sunday's order again later: the confirmation stays
+  await post(sheetOrder);
+  const orders = tables.get('orders')!;
+  const bakery = orders.find((o) => o.supplier_id === 'sup-the-bakery')!;
+  assertEquals([bakery.received, bakery.received_by, bakery.received_at], [[{ ruleId: 'rule-turkey', qty: 1 }], 'Arsen (confirmed)', '2026-11-09T03:42:00.000Z']);
+  const shop = orders.find((o) => o.supplier_id === 'sup-shop')!;
+  assertEquals(shop.received, [{ itemId: 'bar-full-fat-milk', ruleId: '', qty: 6 }]);
+  assert(shop.message.startsWith('Bought from a shop · AED 48 · Ran out'), shop.message);
+  assertEquals(tables.get('suppliers')!.some((s) => s.id === 'sup-shop'), true);
+});

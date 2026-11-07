@@ -22,6 +22,12 @@ type Row = {
   cleared_reason?: string | null;
 };
 type Batch = { business_date: string; shift: 1 | 2 | 'W' | '1' | '2'; area: 'Bar' | 'Kitchen' | 'Weekly'; saved_by: string; saved_at: string; rows: Row[] };
+/** A delivery from the staff app's Deliveries screen. */
+type Delivery = {
+  id: string; business_date: string; kind: 'order' | 'shop' | 'supplier'; supplier: string; order_date: string; at: string; by: string;
+  paid: number | null; why: string; note: string;
+  items: { order_item: string; count_item: string; ordered: number | null; qty: number; count_qty: number }[];
+};
 /** A day's final orders from the sheet, in count units (what staff count: L, g, pcs...). */
 type SheetOrders = { business_date: string; items: { order_item: string; count_qty: number }[]; partial?: boolean };
 
@@ -167,11 +173,18 @@ Deno.serve(async (req) => {
       if (!o.partial) for (const e of earlier ?? []) if (!bySupplier.has(e.supplier_id)) await db.from('orders').delete().eq('id', e.id);
       for (const [supplierId, lines] of bySupplier) {
         const s = (sups ?? []).find((x: any) => x.id === supplierId);
+        const id = await stableId(`sheet-order|${d}|${supplierId}`);
+        // Once staff have confirmed what arrived, keep their numbers
+        const { data: had } = await db.from('orders').select('received_by').eq('id', id).maybeSingle();
+        const confirmed = String(had?.received_by ?? '').includes('(confirmed)');
         const { error } = await db.from('orders').upsert({
-          id: await stableId(`sheet-order|${d}|${supplierId}`), business_date: d, supplier_id: supplierId, lines,
+          id, business_date: d, supplier_id: supplierId, lines,
           message: 'From the Google Sheet', sent_by: 'Google Sheet', sent_at: new Date(Date.parse(d + 'T17:00:00+04:00')).toISOString(),
-          received: lines.map((l: any) => ({ ruleId: l.ruleId, qty: l.qty })), received_by: 'Google Sheet (taken as delivered next morning)',
-          received_at: deliveredAt(d, s?.lead_days ?? 1, s?.no_delivery_days ?? []), location_id: LOCATION,
+          ...(confirmed ? {} : {
+            received: lines.map((l: any) => ({ ruleId: l.ruleId, qty: l.qty })), received_by: 'Google Sheet (taken as delivered next morning)',
+            received_at: deliveredAt(d, s?.lead_days ?? 1, s?.no_delivery_days ?? []),
+          }),
+          location_id: LOCATION,
         }, { onConflict: 'id' });
         if (error) errors.push(`Orders: ${error.message}`);
         else ordersSaved++;
@@ -179,7 +192,67 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Deliveries confirmed by staff, and things that arrived without an order
+  let deliveriesSaved = 0;
+  const deliveries: Delivery[] = ('deliveries' in body && Array.isArray((body as any).deliveries)) ? (body as any).deliveries : [];
+  if (deliveries.length) {
+    const [{ data: rules }, { data: sups }] = await Promise.all([
+      db.from('rules').select('id, supplier_id, order_item, order_unit, pack_size, price'),
+      db.from('suppliers').select('id, name'),
+    ]);
+    const supplierId = (name: string) => (sups ?? []).find((s: any) => norm(s.name) === norm(name))?.id ?? null;
+    for (const dv of deliveries) {
+      const at = dv.at && !Number.isNaN(Date.parse(dv.at)) ? new Date(dv.at).toISOString() : new Date().toISOString();
+      const day = date(dv.business_date);
+      if (!day) continue;
+      if (dv.kind === 'order') {
+        const sid = supplierId(dv.supplier);
+        const orderDate = date(dv.order_date);
+        if (!sid || !orderDate) { unknownOrders.add(dv.supplier); continue; }
+        const lines: any[] = [], received: any[] = [];
+        for (const it of dv.items ?? []) {
+          const rule = (rules ?? []).find((r: any) => norm(r.order_item) === norm(it.order_item) && r.supplier_id === sid)
+            ?? (rules ?? []).find((r: any) => norm(r.order_item) === norm(it.order_item));
+          if (!rule) { unknownOrders.add(String(it.order_item)); continue; }
+          lines.push({ ruleId: rule.id, name: rule.order_item, qty: num(it.ordered) ?? num(it.qty) ?? 0, unit: rule.order_unit, price: rule.price === null ? null : Number(rule.price) });
+          received.push({ ruleId: rule.id, qty: num(it.qty) ?? 0 });
+        }
+        const { error } = await db.from('orders').upsert({
+          id: await stableId(`sheet-order|${orderDate}|${sid}`), business_date: orderDate, supplier_id: sid, lines, message: 'From the Google Sheet',
+          sent_by: 'Google Sheet', sent_at: new Date(Date.parse(orderDate + 'T17:00:00+04:00')).toISOString(),
+          received, received_at: at, received_by: `${dv.by || 'Staff'} (confirmed)`, location_id: LOCATION,
+        }, { onConflict: 'id' });
+        if (error) errors.push(`Deliveries: ${error.message}`);
+        else deliveriesSaved++;
+      } else {
+        // Bought from a shop, or extra from a supplier: amounts are in counting units of each item
+        let sid = dv.kind === 'supplier' ? supplierId(dv.supplier) : null;
+        if (!sid) {
+          sid = 'sup-shop';
+          await db.from('suppliers').upsert({ id: 'sup-shop', name: 'Bought from a shop', how: 'Shop', cutoff: '', delivery: '', lead_days: 0, no_delivery_days: [],
+            open_text: '', weekly: false, uses_lpo: false, sort: 999 }, { onConflict: 'id', ignoreDuplicates: true });
+        }
+        const received: any[] = [], lines: any[] = [];
+        for (const it of dv.items ?? []) {
+          const item = byName.get(norm(it.count_item));
+          if (!item) { unknown.add(String(it.count_item)); continue; }
+          received.push({ itemId: item.id, ruleId: '', qty: num(it.count_qty) ?? 0 });
+          lines.push({ ruleId: '', name: item.name, qty: num(it.count_qty) ?? 0, unit: '', price: null });
+        }
+        const label = dv.kind === 'shop' ? 'Bought from a shop' : `Extra from ${dv.supplier}`;
+        const message = [label, dv.paid !== null && dv.paid !== undefined ? `AED ${dv.paid}` : '', dv.why, dv.note].filter((x) => x && String(x).trim()).join(' · ');
+        const { error } = await db.from('orders').upsert({
+          id: await stableId(`sheet-extra|${dv.id}`), business_date: day, supplier_id: sid, lines, message, sent_by: dv.by || 'Staff', sent_at: at,
+          received, received_at: at, received_by: `${dv.by || 'Staff'} (not ordered)`, location_id: LOCATION,
+        }, { onConflict: 'id' });
+        if (error) errors.push(`Deliveries: ${error.message}`);
+        else deliveriesSaved++;
+      }
+    }
+  }
+
   const parts = [`${saved} counts saved or changed`];
+  if (deliveriesSaved) parts.push(`${deliveriesSaved} deliveries`);
   if (ordersSaved) parts.push(`${ordersSaved} supplier orders`);
   if (unknownOrders.size) parts.push(`order items not matched: ${[...unknownOrders].join(', ')}`);
   if (wasteSaved) parts.push(`${wasteSaved} thrown away`);
@@ -190,5 +263,5 @@ Deno.serve(async (req) => {
     location_id: LOCATION, kind: 'sheet', finished_at: new Date().toISOString(), receipts: 0, ok, message: parts.join(' · '),
     details: { unknown: [...unknown], errors },
   });
-  return Response.json({ ok, saved, waste: wasteSaved, orders: ordersSaved, unknown: [...unknown], unknownOrders: [...unknownOrders], errors }, { status: ok ? 200 : 207 });
+  return Response.json({ ok, saved, waste: wasteSaved, orders: ordersSaved, deliveries: deliveriesSaved, unknown: [...unknown], unknownOrders: [...unknownOrders], errors }, { status: ok ? 200 : 207 });
 });

@@ -138,6 +138,37 @@
   .h-actions { display: flex; gap: 10px; justify-content: space-between; margin-top: 16px; }
   .h-actions .primary:disabled { opacity: 0.5; }
   .loading { padding: 40px 20px; text-align: center; color: var(--muted); }
+
+  /* Deliveries */
+  :root { --del: #7A4B12; --delbg: #F6ECDD; }
+  .area.dv { border: 2px solid var(--del); background: var(--delbg); }
+  .area.dv span { color: var(--del); font-weight: 600; }
+  .area.dv.ok { border: 1px solid #9CC5B0; background: var(--card); }
+  .area.dv.ok span { color: var(--s2); }
+  .dv-sup { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .dv-sup.ok { border-color: #9CC5B0; }
+  .dv-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+  .dv-head b { flex: 1; font-size: 17px; }
+  .dv-head span { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .dv-sup.ok .dv-head span { color: var(--s2); }
+  .dv-it { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--line); background: #FBF9F5; }
+  .dv-it .n { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; }
+  .dv-it .o { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+  .dv-it .o.diff { color: #B54708; font-weight: 700; }
+  .dv-foot { padding: 10px 14px; border-top: 1px solid var(--line); }
+  .dv-ok { width: 100%; height: 46px; border-radius: 23px; border: none; background: var(--s2); color: #FFFFFF; font-size: 15px; font-weight: 700; }
+  .dv-ok:disabled { opacity: 0.6; }
+  .dv-add { height: 54px; border-radius: 16px; border: 2px dashed var(--del); background: transparent; color: var(--del); font-size: 16px; font-weight: 700; }
+  .dv-extra { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font-size: 14px; color: var(--muted); }
+  .dv-extra b { display: block; font-size: 15px; color: var(--ink); }
+  .dv-lab { font-size: 13px; font-weight: 600; color: var(--muted); margin-top: 6px; }
+  .dv-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .dv-line { display: flex; gap: 6px; align-items: center; }
+  .dv-line .sel { flex: 1; min-width: 0; }
+  .dv-line .unit { width: auto; min-width: 28px; }
+  .dv-link { background: none; border: none; color: var(--s1); font-weight: 700; font-size: 14px; padding: 6px 0; text-align: left; }
+  .dv-form { display: flex; flex-direction: column; gap: 8px; }
+  .dv-go { margin-top: 10px; height: 44px; border-radius: 22px; border: none; background: var(--del); color: #FFFFFF; font-size: 15px; font-weight: 700; padding: 0 18px; }
 </style>
 </head>
 <body>
@@ -160,6 +191,10 @@
         <h1 id="hello"></h1>
       </div>
       <button class="pill-btn" id="lockBtn" type="button">Lock</button>
+    </div>
+    <div class="block">
+      <h2>Deliveries</h2>
+      <div class="areas" style="padding-bottom:0"><button class="area dv" id="dvTile" type="button"><span class="t"><b>Deliveries today</b><span id="dvTileSub">Loading...</span></span></button></div>
     </div>
     <div class="block">
       <h2>Choose shift</h2>
@@ -200,6 +235,33 @@
     <button class="pill-btn" id="doneFix" type="button">Fix a number</button>
   </section>
 
+  <section id="deliveriesScreen" class="hidden" style="display:flex; flex-direction:column; flex:1">
+    <div class="head">
+      <div class="head-row">
+        <button class="back" id="dvBack" type="button" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E1A16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+        </button>
+        <h1>Deliveries</h1>
+        <span class="tag" style="color:var(--del);background:var(--delbg)">Today</span>
+      </div>
+    </div>
+    <div class="list" id="dvList"></div>
+  </section>
+
+</div>
+<div id="arrivalBox" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="arrivalTitle">
+  <div class="sheet">
+    <h2 id="arrivalTitle">Something arrived</h2>
+    <p>For anything that came without an order. Amounts in the same unit you count in.</p>
+    <div class="dv-form" id="arrivalForm"></div>
+    <div class="savebar" style="position:static;padding:12px 0 0;border:none">
+      <div class="msg" id="arrivalMsg"></div>
+    </div>
+    <div class="h-actions">
+      <button type="button" class="pill-btn" id="arrivalBack">Cancel</button>
+      <button type="button" class="primary" id="arrivalGo" style="background:var(--del)">Save</button>
+    </div>
+  </div>
 </div>
 <div id="higherBox" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="higherTitle">
   <div class="sheet">
@@ -216,7 +278,7 @@
 (function () {
   var S = { inputs: [], selects: [], acc: {}, open: '', token: '', name: '', pin: '', shift: '1', area: 'Bar', data: null, values: {}, loaded: {}, home: null, busy: false };
   var $ = function (id) { return document.getElementById(id); };
-  var screens = ['pinScreen', 'homeScreen', 'countScreen', 'doneScreen'];
+  var screens = ['pinScreen', 'homeScreen', 'countScreen', 'doneScreen', 'deliveriesScreen'];
 
   function store(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
   function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -281,6 +343,7 @@
       $('hello').textContent = 'Hi ' + h.name;
       drawHome();
     }, function () { $('hello').textContent = 'No connection'; });
+    loadDeliveries(drawDvTile);
   }
   function drawHome() {
     var h = S.home; if (!h) return;
@@ -389,6 +452,14 @@
     if (d.night) L.appendChild(el('div', 'note-box warn', 'Counting is closed from 11pm until 4am. You can look but not change.'));
     else if (d.locked) L.appendChild(el('div', 'note-box warn', 'Shift 1 locked at 5pm. You can look but not change.'));
     if (S.area === 'Weekly') L.appendChild(el('div', 'note-box', 'Count once a week. Saving also sets today as the count date.'));
+    var pend = dvPending();
+    if (S.shift === '1' && S.area !== 'Weekly' && !d.locked && pend.length) {
+      var rem = el('div', 'note-box warn', 'Deliveries not confirmed yet: ' + pend.join(', ') + '. Please confirm what arrived before counting.');
+      var go = el('button', 'dv-go', 'Go to Deliveries'); go.type = 'button';
+      go.onclick = function () { openDeliveries(); };
+      rem.appendChild(el('br')); rem.appendChild(go);
+      L.appendChild(rem);
+    }
     if (S.area === 'Kitchen' && !d.locked) {
       L.appendChild(el('div', 'note-box', (d.expLocked ? 'Expiry dates lock at 5pm with Shift 1.' : 'Expiry dates are filled in for you. Only change them if the package says otherwise.') + ' Count sections in any order.' +
         (S.shift === '2' ? ' Choose Cleared? for old baked croissants and for old stock that expires today, is damaged or not sold. Old stock still in date can stay without it.' : '')));
@@ -705,7 +776,182 @@
     box.classList.remove('hidden');
   }
 
+  /* Deliveries */
+  function loadDeliveries(then) {
+    call('spDeliveries', [S.token], function (d) { S.dv = d; if (then) then(); }, function () { S.dv = null; if (then) then(); });
+  }
+  function dvPending() {
+    if (!S.dv) return [];
+    return S.dv.suppliers.filter(function (s) { return !s.confirmedAt; }).map(function (s) { return s.name; });
+  }
+  function drawDvTile() {
+    var t = $('dvTile'), sub = $('dvTileSub');
+    if (!S.dv) { sub.textContent = 'Could not load deliveries'; t.className = 'area dv'; return; }
+    var pend = dvPending(), n = S.dv.suppliers.length;
+    if (!n) { sub.textContent = (S.dv.sunday ? 'No deliveries on Sunday' : 'Nothing ordered yesterday') + '. Tap to add something that arrived.'; t.className = 'area dv ok'; return; }
+    if (pend.length) { sub.textContent = pend.length + ' of ' + n + ' to confirm: ' + pend.join(', '); t.className = 'area dv'; }
+    else { sub.textContent = 'All ' + n + ' confirmed \u2713'; t.className = 'area dv ok'; }
+  }
+  function openDeliveries() {
+    show('deliveriesScreen');
+    $('dvList').innerHTML = ''; $('dvList').appendChild(el('div', 'loading', 'Loading deliveries...'));
+    loadDeliveries(drawDeliveries);
+  }
+  function drawDeliveries() {
+    var L = $('dvList'); L.innerHTML = '';
+    var d = S.dv;
+    if (!d) { L.appendChild(el('div', 'note-box warn', 'Could not load. Check your signal and go back to try again.')); return; }
+    L.appendChild(el('div', 'note-box', d.suppliers.length
+      ? 'Ordered yesterday. Tap Confirm if everything came. If something is short or extra, change the number first.'
+      : (d.sunday ? 'No deliveries on Sunday.' : 'Nothing was ordered yesterday.') + ' You can still add something that arrived.'));
+    d.suppliers.forEach(function (s) {
+      var card = el('div', 'dv-sup' + (s.confirmedAt ? ' ok' : ''));
+      var head = el('div', 'dv-head');
+      head.appendChild(el('b', '', s.name));
+      head.appendChild(el('span', '', s.confirmedAt ? 'Confirmed ' + s.confirmedAt + ' by ' + s.confirmedBy + ' \u2713' : 'Expected'));
+      card.appendChild(head);
+      var inputs = [];
+      var btn = el('button', 'dv-ok', s.confirmedAt ? 'Save changes' : 'Confirm: everything came'); btn.type = 'button';
+      var relabel = function () {
+        var changed = inputs.some(function (x) { return Number(String(x.i.value).replace(',', '.')) !== x.l.ordered; });
+        if (!s.confirmedAt) btn.textContent = changed ? 'Confirm these numbers' : 'Confirm: everything came';
+        inputs.forEach(function (x) {
+          var diff = Number(String(x.i.value).replace(',', '.')) !== x.l.ordered;
+          x.o.className = 'o' + (diff ? ' diff' : '');
+          x.o.textContent = 'Ordered ' + x.l.ordered + (diff ? ' \u00b7 ' + (x.i.value === '' ? '?' : x.i.value) + ' came' : '');
+        });
+      };
+      s.items.forEach(function (l) {
+        var row = el('div', 'dv-it');
+        var n = el('div', 'n', l.item);
+        var o = el('span', 'o', 'Ordered ' + l.ordered);
+        n.appendChild(o); row.appendChild(n);
+        var w = el('div', 'stepper');
+        var i = el('input', 'num'); i.type = 'text'; i.inputMode = 'decimal'; i.autocomplete = 'off';
+        i.value = String(l.arrived === null ? l.ordered : l.arrived);
+        i.setAttribute('aria-label', l.item + ' arrived');
+        i.oninput = relabel;
+        var bump = function (dd) { var v = Number(String(i.value).replace(',', '.')) || 0; i.value = String(Math.max(0, Math.round((v + dd) * 100) / 100)); relabel(); };
+        var minus = el('button', 'stp', '\u2212'); minus.type = 'button'; minus.onclick = function () { bump(-1); };
+        var plus = el('button', 'stp', '+'); plus.type = 'button'; plus.onclick = function () { bump(1); };
+        minus.setAttribute('aria-label', 'One less ' + l.item); plus.setAttribute('aria-label', 'One more ' + l.item);
+        w.appendChild(minus); w.appendChild(i); w.appendChild(plus);
+        row.appendChild(w);
+        card.appendChild(row);
+        inputs.push({ i: i, l: l, o: o });
+      });
+      var foot = el('div', 'dv-foot');
+      btn.onclick = function () {
+        var items = inputs.map(function (x) { return { item: x.l.item, qty: String(x.i.value).trim() }; });
+        if (items.some(function (x) { return x.qty === '' || isNaN(Number(x.qty.replace(',', '.'))); })) { alert('Type a number for every item (0 if it did not come).'); return; }
+        btn.disabled = true; btn.textContent = 'Saving...';
+        call('spConfirmDelivery', [S.token, s.name, items], function (res) {
+          if (!res.ok) { btn.disabled = false; alert(res.msg); relabel(); return; }
+          loadDeliveries(function () { drawDeliveries(); drawDvTile(); });
+        }, function () { btn.disabled = false; alert('Not saved. Check your signal and try again.'); relabel(); });
+      };
+      foot.appendChild(btn); card.appendChild(foot);
+      L.appendChild(card);
+      relabel();
+    });
+    L.appendChild(el('div', 'sec', 'Not ordered, but arrived'));
+    if (!d.extras.length) L.appendChild(el('div', 'dv-extra', 'Nothing yet today.'));
+    d.extras.forEach(function (x) {
+      var c = el('div', 'dv-extra');
+      c.appendChild(el('b', '', x.type + (x.supplier ? ': ' + x.supplier : '') + (x.paid !== '' && x.paid !== null ? ' \u00b7 AED ' + x.paid : '')));
+      c.appendChild(document.createTextNode(x.items.map(function (i) { return i.qty + ' ' + i.unit + ' ' + i.item; }).join(', ') + ' \u00b7 ' + x.why + (x.note ? ' \u00b7 ' + x.note : '') + ' \u00b7 ' + x.by + ', ' + x.at));
+      L.appendChild(c);
+    });
+    var add = el('button', 'dv-add', '+ Add something that arrived'); add.type = 'button';
+    add.onclick = openArrival;
+    L.appendChild(add);
+  }
+
+  function openArrival() {
+    var d = S.dv; if (!d) return;
+    var F = $('arrivalForm'); F.innerHTML = ''; $('arrivalMsg').textContent = ''; $('arrivalMsg').className = 'msg';
+    var A = { kind: 'shop', supplier: '', why: '', lines: [] };
+    var unitOf = {}; d.items.forEach(function (i) { unitOf[i.name] = i.unit; });
+    var opt = function (label, on, click) { var b = el('button', 'h-opt' + (on ? ' on' : ''), label); b.type = 'button'; b.onclick = click; return b; };
+    function draw() {
+      F.innerHTML = '';
+      F.appendChild(el('div', 'dv-lab', 'From where?'));
+      var ch = el('div', 'dv-choice');
+      ch.appendChild(opt('Bought from a shop', A.kind === 'shop', function () { A.kind = 'shop'; draw(); }));
+      ch.appendChild(opt('Extra from a supplier', A.kind === 'supplier', function () { A.kind = 'supplier'; draw(); }));
+      F.appendChild(ch);
+      if (A.kind === 'supplier') {
+        var ss = el('select', 'sel'); ss.setAttribute('aria-label', 'Supplier');
+        ss.appendChild(new Option('Choose the supplier', ''));
+        d.supplierNames.forEach(function (n) { ss.appendChild(new Option(n, n)); });
+        ss.value = A.supplier; ss.onchange = function () { A.supplier = ss.value; draw(); };
+        F.appendChild(ss);
+      }
+      F.appendChild(el('div', 'dv-lab', 'What came?' + (A.kind === 'shop' ? ' Add everything on the receipt.' : '')));
+      if (!A.lines.length) A.lines.push({ item: '', qty: '' });
+      A.lines.forEach(function (ln, idx) {
+        var row = el('div', 'dv-line');
+        var s = el('select', 'sel'); s.setAttribute('aria-label', 'Item');
+        s.appendChild(new Option('Choose an item', ''));
+        var mine = A.kind === 'supplier' && A.supplier ? (d.bySupplier[A.supplier] || []) : [];
+        if (mine.length) {
+          var g1 = document.createElement('optgroup'); g1.label = A.supplier;
+          mine.forEach(function (n) { if (unitOf[n] !== undefined) g1.appendChild(new Option(n + ' (' + unitOf[n] + ')', n)); });
+          s.appendChild(g1);
+        }
+        var g2 = document.createElement('optgroup'); g2.label = mine.length ? 'All items' : 'Items';
+        d.items.forEach(function (i) { if (mine.indexOf(i.name) < 0) g2.appendChild(new Option(i.name + ' (' + i.unit + ')', i.name)); });
+        s.appendChild(g2);
+        s.value = ln.item; s.onchange = function () { ln.item = s.value; unit.textContent = unitOf[s.value] || ''; };
+        var q = el('input', 'num'); q.type = 'text'; q.inputMode = 'decimal'; q.style.width = '64px'; q.placeholder = '0';
+        q.value = ln.qty; q.setAttribute('aria-label', 'Amount'); q.oninput = function () { ln.qty = q.value; };
+        var unit = el('span', 'unit', unitOf[ln.item] || '');
+        row.appendChild(s); row.appendChild(q); row.appendChild(unit);
+        if (A.lines.length > 1) { var x = el('button', 'stp', '\u00d7'); x.type = 'button'; x.setAttribute('aria-label', 'Remove'); x.onclick = function () { A.lines.splice(idx, 1); draw(); }; row.appendChild(x); }
+        F.appendChild(row);
+      });
+      var more = el('button', 'dv-link', '+ Another item'); more.type = 'button';
+      more.onclick = function () { A.lines.push({ item: '', qty: '' }); draw(); };
+      F.appendChild(more);
+      if (A.kind === 'shop') {
+        F.appendChild(el('div', 'dv-lab', 'Total paid (AED)'));
+        var paid = el('input', 'num wide'); paid.type = 'text'; paid.inputMode = 'decimal'; paid.style.textAlign = 'left';
+        paid.value = A.paid || ''; paid.oninput = function () { A.paid = paid.value; $('arrivalMsg').textContent = ''; };
+        F.appendChild(paid);
+      }
+      F.appendChild(el('div', 'dv-lab', 'Why?'));
+      var wh = el('div', 'dv-choice');
+      d.why.forEach(function (w) { wh.appendChild(opt(w, A.why === w, function () { A.why = w; draw(); })); });
+      F.appendChild(wh);
+      var note = el('input', 'txt'); note.type = 'text'; note.placeholder = 'Note (optional)'; note.value = A.note || '';
+      note.oninput = function () { A.note = note.value; };
+      F.appendChild(note);
+    }
+    draw();
+    $('arrivalBack').onclick = function () { $('arrivalBox').classList.add('hidden'); };
+    $('arrivalGo').onclick = function () {
+      var go = $('arrivalGo');
+      var lines = A.lines.filter(function (l) { return l.item; }).map(function (l) { return { item: l.item, qty: String(l.qty).trim() }; });
+      var msg = !lines.length ? 'Choose at least one item.'
+        : lines.some(function (l) { return !(Number(l.qty.replace(',', '.')) > 0); }) ? 'Type the amount for each item.'
+        : A.kind === 'supplier' && !A.supplier ? 'Choose the supplier.'
+        : A.kind === 'shop' && !(String(A.paid || '').trim() !== '' && Number(String(A.paid).replace(',', '.')) >= 0) ? 'Type the total paid.'
+        : !A.why ? 'Choose why.' : '';
+      if (msg) { $('arrivalMsg').className = 'msg err'; $('arrivalMsg').textContent = msg; return; }
+      go.disabled = true; go.textContent = 'Saving...';
+      call('spAddArrival', [S.token, { kind: A.kind, supplier: A.supplier, items: lines, paid: A.paid, why: A.why, note: A.note }], function (res) {
+        go.disabled = false; go.textContent = 'Save';
+        if (!res.ok) { $('arrivalMsg').className = 'msg err'; $('arrivalMsg').textContent = res.msg; return; }
+        $('arrivalBox').classList.add('hidden');
+        loadDeliveries(function () { drawDeliveries(); drawDvTile(); });
+      }, function () { go.disabled = false; go.textContent = 'Save'; $('arrivalMsg').className = 'msg err'; $('arrivalMsg').textContent = 'Not saved. Check your signal and try again.'; });
+    };
+    $('arrivalBox').classList.remove('hidden');
+  }
+
   /* Wire up */
+  $('dvTile').onclick = function () { openDeliveries(); };
+  $('dvBack').onclick = function () { goHome(); };
   $('lockBtn').onclick = function () { signOut(); };
   $('s1Btn').onclick = function () { S.shift = '1'; drawHome(); };
   $('s2Btn').onclick = function () { S.shift = '2'; drawHome(); };
