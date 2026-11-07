@@ -39,7 +39,9 @@ const addDays = (d: string, n: number) => new Date(Date.parse(d + 'T00:00:00Z') 
 /** Like the sheet: an order is taken as delivered on the supplier's next delivery morning (8am Dubai). */
 function deliveredAt(orderDate: string, leadDays: number, noDeliveryDays: number[]): string {
   let d = addDays(orderDate, Math.max(1, leadDays || 1));
-  for (let i = 0; i < 7 && noDeliveryDays.includes(new Date(d + 'T00:00:00Z').getUTCDay()); i++) d = addDays(d, 1);
+  // Nothing is delivered on Sunday, for any supplier
+  const closed = [...new Set([0, ...noDeliveryDays])];
+  for (let i = 0; i < 7 && closed.includes(new Date(d + 'T00:00:00Z').getUTCDay()); i++) d = addDays(d, 1);
   return new Date(Date.parse(d + 'T08:00:00+04:00')).toISOString();
 }
 
@@ -149,7 +151,8 @@ Deno.serve(async (req) => {
     ]);
     for (const o of sheetOrders) {
       const d = date(o.business_date);
-      if (!d) continue;
+      // No orders are placed on Saturday (nothing is delivered on Sunday)
+      if (!d || new Date(d + 'T00:00:00Z').getUTCDay() === 6) continue;
       const bySupplier = new Map<string, any[]>();
       for (const it of o.items ?? []) {
         const qty = num(it.count_qty);

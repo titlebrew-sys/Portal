@@ -270,10 +270,12 @@ function portalBridgeOrders_() {
   if (Object.prototype.toString.call(today) !== '[object Date]') return [];
   var todayKey = portalBridgeDayKey_(today);
   var out = [];
+  // Title Brew orders nothing on Saturday (no Sunday deliveries): Friday orders for Saturday, Sunday for Monday
+  var isSaturday = function (key) { return new Date(key + 'T12:00:00Z').getUTCDay() === 6; };
   var to = ss.getSheetByName("Today's Orders");
   // Only from 4pm: before the Shift 1 count the tab shows suggestions from empty counts
   var hourNow = Number(Utilities.formatDate(new Date(), PORTAL_BRIDGE_TZ, 'H'));
-  if (to && to.getLastRow() > 0 && hourNow >= 16) {
+  if (to && to.getLastRow() > 0 && hourNow >= 16 && !isSaturday(todayKey)) {
     var items = [];
     to.getRange(1, 1, to.getLastRow(), 19).getValues().forEach(function (r) {
       // A item, F final order, Q rule, S count units per order unit
@@ -292,7 +294,7 @@ function portalBridgeOrders_() {
       if (Object.prototype.toString.call(r[0]) === '[object Date]' && portalBridgeDayKey_(r[0]) === yKey && Number(r[4]) > 0) yItems.push({ order_item: String(r[1]), count_qty: Number(r[4]) });
     });
     // Only milk and bakery (the Usage Log), so it must not remove yesterday's other supplier orders
-    if (yItems.length) out.push({ business_date: yKey, items: yItems, partial: true });
+    if (yItems.length && !isSaturday(yKey)) out.push({ business_date: yKey, items: yItems, partial: true });
   }
   return out;
 }

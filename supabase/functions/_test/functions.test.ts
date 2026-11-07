@@ -140,8 +140,12 @@ Deno.test({ name: 'sheet-counts: sheet orders become next-morning deliveries, on
   tables.set('suppliers', [{ id: 'sup-almarai', lead_days: 1, no_delivery_days: [0] }, { id: 'sup-the-bakery', lead_days: 1, no_delivery_days: [0] }]);
   installFetch(() => ({}));
   const run = await loadFunction('../sheet-counts/index.ts', { BRIDGE_SECRET: 's3cret' });
-  // Saturday 7 Nov order: no Sunday delivery, so it arrives Monday morning
-  const body = { batches: [], orders: [{ business_date: '2026-11-07', items: [{ order_item: 'Full Fat Milk 2L', count_qty: 12 }, { order_item: 'Avocado Chicken Sandwich', count_qty: 2 }, { order_item: 'Mystery', count_qty: 1 }] }] };
+  // Saturday orders are ignored (nothing is ordered on Saturday)
+  const sat = await (await run(new Request('http://x', { method: 'POST', headers: { 'x-bridge-secret': 's3cret' },
+    body: JSON.stringify({ batches: [], orders: [{ business_date: '2026-11-07', items: [{ order_item: 'Full Fat Milk 2L', count_qty: 12 }] }] }) }))).json();
+  assertEquals(sat.orders, 0);
+  // Sunday 8 Nov order arrives Monday morning
+  const body = { batches: [], orders: [{ business_date: '2026-11-08', items: [{ order_item: 'Full Fat Milk 2L', count_qty: 12 }, { order_item: 'Avocado Chicken Sandwich', count_qty: 2 }, { order_item: 'Mystery', count_qty: 1 }] }] };
   const post = () => run(new Request('http://x', { method: 'POST', headers: { 'x-bridge-secret': 's3cret' }, body: JSON.stringify(body) }));
   const res = await (await post()).json();
   assertEquals([res.orders, res.unknownOrders], [2, ['Mystery']]);
@@ -151,6 +155,7 @@ Deno.test({ name: 'sheet-counts: sheet orders become next-morning deliveries, on
   const milk = orders.find((o) => o.supplier_id === 'sup-almarai')!;
   assertEquals(milk.received, [{ ruleId: 'rule-milk', qty: 6 }]); // 12 L = 6 x 2L bottles
   assertEquals(milk.received_at, '2026-11-09T04:00:00.000Z'); // Monday 8am Dubai
+  assertEquals(milk.business_date, '2026-11-08');
   // Later the bakery order is removed in the sheet: its earlier order goes too
   body.orders[0].items = [{ order_item: 'Full Fat Milk 2L', count_qty: 12 }];
   await post();
