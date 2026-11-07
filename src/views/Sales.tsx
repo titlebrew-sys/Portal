@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LiveSales } from './LiveSales';
+import { SalesToday } from './SalesToday';
 import { useApp } from '../ctx';
 import { Head, MobileWho, aed } from '../components';
 import { periodInfo, salesFromLoyverse } from '../lib/csv';
@@ -140,10 +140,10 @@ export function Sales() {
   return (
     <>
       <div className="tabs noprint">
-        <button className="btn sm" aria-pressed={tab === 'live'} onClick={() => setTab('live')}>Live from Loyverse</button>
+        <button className="btn sm" aria-pressed={tab === 'live'} onClick={() => setTab('live')}>Today and yesterday</button>
         <button className="btn sm" aria-pressed={tab === 'file'} onClick={() => setTab('file')}>From a Loyverse file</button>
       </div>
-      {tab === 'live' ? <LiveSales /> : <FileSales />}
+      {tab === 'live' ? <SalesToday /> : <FileSales />}
     </>
   );
 }

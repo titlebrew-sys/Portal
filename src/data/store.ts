@@ -1,5 +1,6 @@
 import type { AppData, CountItem, CountRow, CountSession, Ingredient, Me, ModifierRule, Order, Receipt, Recipe, RecipeChange, Rule, SalesReport, SalesRow, Supplier, WasteRow } from '../types';
 import type { LyItem } from '../lib/importRecipes';
+import type { LiveSales } from '../types';
 
 export type NewOrder = Omit<Order, 'id' | 'lpoNumber' | 'receivedAt' | 'receivedBy' | 'received'>;
 
@@ -34,6 +35,8 @@ export interface Store {
   recipeHistory(targetId?: string): Promise<RecipeChange[]>;
   /** Sheet item name -> portal count item, for names the Google Sheet spells differently. */
   saveAlias(name: string, itemId: string): Promise<void>;
+  /** Yesterday's and today's sales straight from Loyverse, with the till check. */
+  liveSales(): Promise<LiveSales>;
   /** Ask the Loyverse sync to run now (owner). */
   syncNow?(): Promise<string>;
 }

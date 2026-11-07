@@ -52,6 +52,10 @@ export function installFetch(loyverse: LvHandler, calls: string[] = []) {
       calls.push(url.pathname.replace('/v1.0/', '') + url.search);
       return Response.json(await loyverse(url.pathname.replace('/v1.0/', ''), url.searchParams));
     }
+    if (url.pathname === '/auth/v1/user') {
+      const ok = req.headers.get('authorization') === 'Bearer owner-jwt';
+      return ok ? Response.json({ id: 'u-owner', aud: 'authenticated', role: 'authenticated' }) : Response.json({ msg: 'bad jwt' }, { status: 401 });
+    }
     const text = req.method === 'GET' ? '' : await req.text();
     return rest(url, req.method, text ? JSON.parse(text) : null, req.headers);
   };

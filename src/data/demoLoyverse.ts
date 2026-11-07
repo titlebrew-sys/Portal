@@ -118,3 +118,25 @@ export function demoReceipts(fromIso: string, toIso: string): Receipt[] {
   for (let i = 0; i < 800 && d <= last; i++, d = addDays(d, 1)) out.push(...demoReceiptsFor(d).filter((x) => x.at > fromIso && x.at <= toIso));
   return out;
 }
+
+/** Demo version of the live check: made-up receipts shaped like Loyverse's. */
+export function demoLive(): import('../types').LiveSales {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const yesterday = addDays(today, -1);
+  const toLive = (r: Receipt): import('../types').LiveReceipt => ({
+    number: r.number, type: r.type, at: r.at, createdAt: r.at, businessDate: r.businessDate, dining: r.dining, cancelled: r.cancelled,
+    total: r.total ?? 0, discount: 0, employee: 'Demo', store: 'Title Brew (demo)', payments: [{ name: 'Card', amount: r.total ?? 0 }],
+    lines: r.lines.map((l) => ({ item: l.itemName, inMenu: true, variant: null, qty: l.qty, price: l.total ?? 0, total: l.total ?? 0, discount: 0, note: null,
+      modifiers: l.modifiers.map((m) => ({ ...m, amount: 0 })) })),
+  });
+  const receipts = [...demoReceiptsFor(yesterday), ...demoReceiptsFor(today, now.toISOString())].map(toLive).sort((a, b) => (a.at < b.at ? 1 : -1));
+  const last = receipts.find((r) => r.businessDate === today);
+  return {
+    ok: true, checkedAt: now.toISOString(), account: 'Demo', today, yesterday, receipts,
+    checks: [
+      { level: 'warn', text: 'Demo: these are made-up sales. Loyverse is not connected in demo mode.' },
+      ...(last ? [{ level: 'ok' as const, text: `Last sale ${Math.max(1, Math.round((now.getTime() - Date.parse(last.at)) / 60000))} minutes ago (receipt ${last.number}).` }] : []),
+    ],
+  };
+}

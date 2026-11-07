@@ -5,7 +5,8 @@ import { addDays, fmtDayMonth, fmtDubaiTime, fmtLongDate, fmtShortDate, greeting
 import { fmtNum } from '../lib/ordering';
 import { periodInfo } from '../lib/csv';
 import { useEffect, useMemo, useState } from 'react';
-import type { SalesReport } from '../types';
+import type { LiveSales } from '../types';
+import { dayTotals } from './SalesToday';
 import { useStockData } from '../lib/useStock';
 import { differenceRows } from './Differences';
 import { amt, countLabel, signed } from './stockParts';
@@ -176,12 +177,19 @@ function DifferenceAlerts() {
   );
 }
 
-/** Today so far, live from Loyverse. */
+/** Today so far, straight from Loyverse, with the till check. */
 function TodaySales() {
-  const { store, today } = useApp();
-  const [r, setR] = useState<SalesReport | null | undefined>(undefined);
-  useEffect(() => { store.salesReport(today, today).then(setR).catch(() => setR(null)); }, [store, today]);
-  if (r === undefined) return <p className="sub" style={{ margin: 0 }}>Checking today's sales…</p>;
-  if (!r || !r.totals.receipts) return <p className="sub" style={{ margin: 0 }}>No sales from Loyverse yet today.</p>;
-  return <p className="sub" style={{ margin: 0 }}><b>Today so far: {aed(r.totals.sales)}</b> from {r.totals.receipts} receipts{store.mode === 'demo' ? ' (demo)' : ''}.</p>;
+  const { store } = useApp();
+  const [live, setLive] = useState<LiveSales | null | undefined>(undefined);
+  useEffect(() => { store.liveSales().then(setLive).catch(() => setLive(null)); }, [store]);
+  if (live === undefined) return <p className="sub" style={{ margin: 0 }}>Checking today's sales…</p>;
+  if (!live) return <p className="sub" style={{ margin: 0 }}>Could not reach Loyverse right now.</p>;
+  const t = dayTotals(live.receipts.filter((r) => r.businessDate === live.today));
+  const warn = live.checks.find((c) => c.level !== 'ok');
+  return (
+    <>
+      <p className="sub" style={{ margin: 0 }}><b>Today so far: {aed(t.sales)}</b> from {t.count} receipts.</p>
+      {warn && <p className="sub" style={{ margin: 0, color: warn.level === 'bad' ? 'var(--bad)' : 'var(--warn)' }}>{warn.text}</p>}
+    </>
+  );
 }

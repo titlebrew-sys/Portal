@@ -5,7 +5,7 @@
 import type { AppData, RecipeChange } from '../types';
 import type { Store } from './store';
 import { demoBook, demoData } from './seed';
-import { demoReceipts, DEMO_LY_ITEMS } from './demoLoyverse';
+import { demoLive, demoReceipts, DEMO_LY_ITEMS } from './demoLoyverse';
 import { salesFromReceipts } from '../lib/salesReport';
 import { businessDate } from '../lib/time';
 
@@ -124,6 +124,9 @@ export function demoStore(): Store {
     },
     async seedStock() {
       /* demo already has the starting setup */
+    },
+    async liveSales() {
+      return demoLive();
     },
     async saveAlias() {
       /* demo: the Google Sheet is not connected */

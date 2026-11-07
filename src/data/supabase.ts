@@ -8,6 +8,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { AppData, CountItem, CountRow, Ingredient, ModifierRule, Order, Receipt, Recipe, RecipeChange, Rule, SalesReport, SalesRow, StockBook, Supplier, SyncRun, WasteRow } from '../types';
 import type { LyItem } from '../lib/importRecipes';
+import type { LiveSales } from '../types';
 import type { Auth, Store } from './store';
 import { seedItems, seedLpoNext, seedRules, seedSuppliers } from './seed';
 import { addDays, businessDate } from '../lib/time';
@@ -273,10 +274,16 @@ export function liveStore(isOwner: () => boolean, myName: () => string = () => '
     async saveAlias(name, itemId) {
       check(await db().from('count_item_aliases').upsert({ name, item_id: itemId }));
     },
+    async liveSales() {
+      const { data, error } = await db().functions.invoke('loyverse-sync', { body: { action: 'live' } });
+      if (error) throw new Error('The portal could not reach the Loyverse check. ' + error.message);
+      return data as LiveSales;
+    },
     async syncNow() {
       const { data, error } = await db().functions.invoke('loyverse-sync', { body: {} });
       if (error) throw new Error(error.message);
-      return (data as { message?: string })?.message ?? 'Done';
+      const checks = ((data as LiveSales)?.checks ?? []);
+      return checks.find((c) => c.level !== 'ok')?.text ?? 'Loyverse is live.';
     },
   };
 }

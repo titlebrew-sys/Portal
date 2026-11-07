@@ -8,62 +8,80 @@ const receipt = (n: number, at: string, extra: any = {}) => ({
   ...extra,
 });
 
-Deno.test({ name: 'loyverse-sync: menu, new receipts, and the last 3 months in resumable batches', sanitizeOps: false, sanitizeResources: false }, async () => {
-  tables.clear();
-  // 1000 receipts over the last ~83 days, 50 older than 3 months (not wanted), 3 recent ones
-  const history = Array.from({ length: 1000 }, (_, i) => receipt(i, new Date(Date.now() - (i + 1) * 2 * 3600_000).toISOString()))
-    .concat(Array.from({ length: 50 }, (_, i) => receipt(9000 + i, new Date(Date.now() - (100 + i) * 864e5).toISOString())));
-  const recent = [receipt(5001, new Date().toISOString()), receipt(5002, new Date().toISOString(), { cancelled_at: new Date().toISOString() }),
-    receipt(5003, new Date().toISOString(), { receipt_type: 'REFUND' })];
-  const calls: string[] = [];
-  installFetch((path, q) => {
-    if (path === 'items') return { items: [{ id: 'it-latte', item_name: 'Latte', is_composite: true, components: [{ variant_id: 'v-coffee', quantity: 18 }], variants: [{ variant_id: 'v-latte' }] }] };
-    if (['categories', 'stores', 'employees', 'modifiers'].includes(path)) return { [path]: [{ id: path + '-1', name: path }] };
-    if (path === 'receipts') {
-      let list = q.get('updated_at_min') ? recent.filter((r) => r.updated_at >= q.get('updated_at_min')!)
-        : history.filter((r) => r.created_at >= q.get('created_at_min')! && r.created_at < q.get('created_at_max')!);
-      const start = Number(q.get('cursor') || 0);
-      const page = list.slice(start, start + 250);
-      return { receipts: page, cursor: start + 250 < list.length ? String(start + 250) : null };
-    }
+const nowIso = () => new Date().toISOString();
+const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+function fakeLoyverse(receipts: any[], status = 200) {
+  return (path: string) => {
+    if (status !== 200) return Promise.reject(new Error('unused'));
+    if (path === 'merchant') return { business_name: 'Title Brew' };
+    if (path === 'stores') return { stores: [{ id: 's1', name: 'Title Brew Bay Square' }] };
+    if (path === 'employees') return { employees: [{ id: 'e1', name: 'Arsen' }] };
+    if (path === 'receipts') return { receipts, cursor: null };
     return {};
-  }, calls);
-  const run = await loadFunction('../loyverse-sync/index.ts', { LOYVERSE_TOKEN: 'x', LOYVERSE_API_BASE: 'http://fake.loyverse/v1.0/' });
-  // The browser's permission check is answered at once and does not start a sync
-  const pre = await run(new Request('http://x', { method: 'OPTIONS' }));
-  assertEquals([pre.status, pre.headers.get('access-control-allow-origin')], [200, '*']);
-  assertEquals(calls.length, 0);
-  // Runs are small: keep running until the history is done, as the 5-minute schedule would
-  let res: any;
-  for (let i = 0; i < 40; i++) {
-    res = await (await run(new Request('http://x', { method: 'POST' }))).json();
-    assert(res.ok, res.message);
-    if (tables.get('sync_state')!.find((s) => s.key === 'backfill')?.value.done) break;
-  }
-  assert(tables.get('sync_runs')!.length > 1, 'history took more than one small run');
-  assertEquals(tables.get('loyverse_items')!.length, 1);
-  assertEquals(tables.get('receipts')!.length, 1003);
-  assertEquals(tables.get('receipt_line_modifiers')!.length, 1003);
-  const r = tables.get('receipts')!.find((x) => x.receipt_number === '1-5002')!;
-  assert(r.cancelled_at, 'cancelled time kept so it is ignored later');
-  assertEquals(tables.get('sync_state')!.find((s) => s.key === 'backfill')!.value.done, true);
-  const runs = tables.get('sync_runs')!;
-  assert(runs.every((r) => r.ok), 'every run finished well');
-  assert(runs.length > 1, 'history took more than one small run');
-  // Second run: history is done, only new receipts are asked for; saving again does not duplicate
-  calls.length = 0;
-  await (await run(new Request('http://x', { method: 'POST' }))).json();
-  assertEquals(tables.get('receipts')!.length, 1003);
-  assert(calls.every((c) => !c.includes('created_at_min')), 'no more history requests');
+  };
+}
+const sale = (n: number, at: string, extra: any = {}) => ({
+  receipt_number: `1-${n}`, receipt_type: 'SALE', created_at: at, receipt_date: at, total_money: 23, total_discount: 0, employee_id: 'e1', store_id: 's1',
+  dining_option: 'Take-Away', payments: [{ name: 'Card', money_amount: 23 }],
+  line_items: [{ item_id: 'it1', item_name: 'Cappuccino', quantity: 1, price: 20, total_money: 23, total_discount: 0,
+    line_modifiers: [{ name: 'Alternative Milk', option: 'Oat', money_amount: 3 }] }],
+  ...extra,
 });
 
-Deno.test({ name: 'loyverse-sync: a failure is logged in plain words', sanitizeOps: false, sanitizeResources: false }, async () => {
+Deno.test({ name: 'loyverse-sync live: the owner gets every receipt for yesterday and today, with the till check', sanitizeOps: false, sanitizeResources: false }, async () => {
   tables.clear();
+  tables.set('profiles', [{ id: 'u-owner', role: 'owner', active: true }]);
+  const yesterdayNoon = new Date(Date.parse(new Date().toISOString().slice(0, 10) + 'T00:00:00Z') - 12 * 3600_000).toISOString();
+  installFetch(fakeLoyverse([sale(1, minsAgo(3)), sale(2, yesterdayNoon), sale(3, minsAgo(30), { receipt_type: 'REFUND' }), sale(4, minsAgo(40), { cancelled_at: nowIso() }),
+    sale(5, '2020-01-01T08:00:00Z')]));
+  const run = await loadFunction('../loyverse-sync/index.ts', { LOYVERSE_TOKEN: 'x', LOYVERSE_API_BASE: 'http://fake.loyverse/v1.0/' });
+  const res = await (await run(new Request('http://x', { method: 'POST', headers: { authorization: 'Bearer owner-jwt' } }))).json();
+  assertEquals(res.ok, true);
+  assertEquals(res.owner, true);
+  assertEquals(res.receipts.map((r: any) => r.number).sort(), ['1-1', '1-2', '1-3', '1-4']); // old one left out
+  const r1 = res.receipts.find((r: any) => r.number === '1-1');
+  assertEquals([r1.employee, r1.store, r1.dining, r1.payments[0].name, r1.lines[0].modifiers[0].option], ['Arsen', 'Title Brew Bay Square', 'Take-Away', 'Card', 'Oat']);
+  const text = res.checks.map((c: any) => c.text).join(' | ');
+  assert(text.includes('Connected to Loyverse (Title Brew)'), text);
+  assert(text.includes('Last sale 3 minutes ago (receipt 1-1)'), text);
+  assert(text.includes('1 refund, 1 cancelled receipt'), text);
+  // The check is saved for the portal's Sync status
+  assertEquals(tables.get('sync_runs')!.at(-1)!.ok, true);
+});
+
+Deno.test({ name: 'loyverse-sync live: the 5-minute schedule only checks; no sales or money without the owner login', sanitizeOps: false, sanitizeResources: false }, async () => {
+  tables.clear();
+  installFetch(fakeLoyverse([sale(1, minsAgo(3))]));
+  const run = await loadFunction('../loyverse-sync/index.ts', { LOYVERSE_TOKEN: 'x', LOYVERSE_API_BASE: 'http://fake.loyverse/v1.0/' });
+  const res = await (await run(new Request('http://x', { method: 'POST', headers: { authorization: 'Bearer public-anon-key' } }))).json();
+  assertEquals([res.ok, res.owner, res.receipts.length], [true, false, 0]);
+  assertEquals(tables.get('sync_runs')!.length, 1);
+  const pre = await run(new Request('http://x', { method: 'OPTIONS' }));
+  assertEquals([pre.status, pre.headers.get('access-control-allow-origin')], [200, '*']);
+});
+
+Deno.test({ name: 'loyverse-sync live: warnings in plain words', sanitizeOps: false, sanitizeResources: false }, async () => {
+  tables.clear();
+  // Sale reached Loyverse 40 minutes after it was made: the till was offline
+  installFetch(fakeLoyverse([sale(1, minsAgo(45), { created_at: minsAgo(5) })]));
+  let run = await loadFunction('../loyverse-sync/index.ts', { LOYVERSE_TOKEN: 'x', LOYVERSE_API_BASE: 'http://fake.loyverse/v1.0/' });
+  let res = await (await run(new Request('http://x', { method: 'POST' }))).json();
+  assert(res.checks.some((c: any) => c.level === 'warn' && c.text.includes('reached Loyverse late')), JSON.stringify(res.checks));
+  // A refused key
   installFetch(() => ({}));
-  const run = await loadFunction('../loyverse-sync/index.ts', { LOYVERSE_TOKEN: '', LOYVERSE_API_BASE: 'http://fake.loyverse/v1.0/' });
-  const res = await run(new Request('http://x', { method: 'POST' }));
-  assertEquals(res.status, 500);
-  assertEquals(tables.get('sync_runs')!.at(-1)!.message, 'The Loyverse token is missing (Edge Function secret LOYVERSE_TOKEN).');
+  globalThis.fetch = ((orig) => async (input: any, init?: any) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    if (url.host === 'fake.loyverse') return new Response('no', { status: 401 });
+    return orig(input, init);
+  })(globalThis.fetch);
+  res = await (await run(new Request('http://x', { method: 'POST' }))).json();
+  assertEquals(res.ok, false);
+  assert(res.checks[0].text.startsWith('Loyverse refused the key'), res.checks[0].text);
+  // No key at all
+  installFetch(() => ({}));
+  run = await loadFunction('../loyverse-sync/index.ts', { LOYVERSE_TOKEN: '', LOYVERSE_API_BASE: 'http://fake.loyverse/v1.0/' });
+  res = await (await run(new Request('http://x', { method: 'POST' }))).json();
+  assert(res.checks[0].text.includes('Loyverse key is missing'), res.checks[0].text);
 });
 
 Deno.test({ name: 'sheet-counts: secret required, counts saved once, kitchen total, waste, unknown names', sanitizeOps: false, sanitizeResources: false }, async () => {
@@ -103,24 +121,3 @@ Deno.test({ name: 'sheet-counts: secret required, counts saved once, kitchen tot
   assert(tables.get('sync_runs')!.at(-1)!.message.includes('names not matched: Mystery syrup'));
 });
 
-Deno.test({ name: 'loyverse-sync: a list that never ends and a hanging step do not run forever', sanitizeOps: false, sanitizeResources: false }, async () => {
-  tables.clear();
-  let employeeCalls = 0;
-  installFetch((path) => {
-    if (path === 'employees') { employeeCalls++; return { employees: [], cursor: 'same-cursor-forever' }; }
-    if (path === 'items') return { items: [] };
-    if (path === 'receipts') return { receipts: [] };
-    return { [path]: [] };
-  });
-  const run = await loadFunction('../loyverse-sync/index.ts', { LOYVERSE_TOKEN: 'x', LOYVERSE_API_BASE: 'http://fake.loyverse/v1.0/', SYNC_DEADLINE_MS: '300' });
-  const res = await (await run(new Request('http://x', { method: 'POST' }))).json();
-  assert(res.ok, res.message);
-  assertEquals(employeeCalls, 1);
-  // A step that hangs: the run stops tidily and says where it was
-  tables.clear();
-  installFetch((path) => (path === 'receipts' ? new Promise(() => {}) : { [path]: [] }) as any);
-  const res2 = await (await run(new Request('http://x', { method: 'POST' }))).json();
-  assertEquals(res2.ok, false);
-  assert(res2.message.includes('while reading new receipts'), res2.message);
-  assert(tables.get('sync_runs')!.at(-1)!.message.includes('Stopped after'), 'logged for the portal');
-});

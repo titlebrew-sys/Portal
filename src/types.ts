@@ -314,3 +314,42 @@ export interface StockBook {
   loyverseItems: LoyverseItem[];
   syncRuns: SyncRun[];
 }
+
+// ---------------------------------------------------------------- live sales straight from Loyverse (test)
+
+export interface LiveCheck { level: 'ok' | 'warn' | 'bad'; text: string }
+export interface LiveLine {
+  item: string;
+  inMenu: boolean;
+  variant: string | null;
+  qty: number;
+  price: number;
+  total: number;
+  discount: number;
+  note: string | null;
+  modifiers: { group: string; option: string; amount: number }[];
+}
+export interface LiveReceipt {
+  number: string;
+  type: 'SALE' | 'REFUND';
+  at: string;
+  createdAt: string;
+  businessDate: string;
+  dining: string | null;
+  cancelled: boolean;
+  total: number;
+  discount: number;
+  employee: string | null;
+  store: string | null;
+  payments: { name: string; amount: number }[];
+  lines: LiveLine[];
+}
+export interface LiveSales {
+  ok: boolean;
+  checkedAt: string;
+  account: string | null;
+  checks: LiveCheck[];
+  today: string | null;
+  yesterday: string | null;
+  receipts: LiveReceipt[];
+}
