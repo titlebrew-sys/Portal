@@ -320,6 +320,7 @@ export interface StockBook {
 export interface LiveCheck { level: 'ok' | 'warn' | 'bad'; text: string }
 export interface LiveLine {
   item: string;
+  itemId?: string | null;
   inMenu: boolean;
   variant: string | null;
   qty: number;

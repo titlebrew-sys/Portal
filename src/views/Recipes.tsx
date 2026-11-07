@@ -41,7 +41,7 @@ function Starter() {
   if (me.role !== 'owner') return null;
   const lyIds = new Set(data.book.recipes.map((r) => r.id));
   const missing = data.book.loyverseItems.filter((i) => !lyIds.has(i.id) && !isIngredientOnly(i));
-  const needSetup = !data.book.ingredients.length || !data.book.modifierRules.length;
+  const needSetup = !data.book.ingredients.length || !data.book.modifierRules.length || !data.book.recipes.length;
   if (!needSetup && !missing.length && !notes.length) return null;
   async function build() {
     await run(async () => {

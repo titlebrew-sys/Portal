@@ -20,7 +20,7 @@ export function differenceRows(ings: Ingredient[], inputs: Parameters<typeof ste
 
 export function Differences() {
   const { data, store, today } = useApp();
-  const [from, setFrom] = useState(addDays(today, -6));
+  const [from, setFrom] = useState(addDays(today, -1));
   const [to, setTo] = useState(today);
   const [item, setItem] = useState('');
   const [onlyOver, setOnlyOver] = useState(false);
@@ -45,6 +45,7 @@ export function Differences() {
       <MobileWho />
       <Head eyebrow="Stock" title="Differences" sub="Difference = counted − expected. Tap a line to see how it was worked out, down to each receipt." />
       <DateRange from={from} to={to} today={today} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+      <div className="banner info"><span>For now: sales come live from Loyverse for <b>yesterday and today</b>. Counts come from your Google Sheet. Deliveries are taken from the sheet's orders, as arriving the next morning.</span></div>
       <div className="fieldset noprint" style={{ alignItems: 'flex-end' }}>
         <label>Ingredient
           <select className="field" value={item} onChange={(e) => setItem(e.target.value)}>

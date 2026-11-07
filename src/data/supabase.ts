@@ -92,6 +92,16 @@ const runFrom = (r: any): SyncRun => ({
   id: r.id, kind: r.kind, startedAt: r.started_at, finishedAt: r.finished_at, receipts: r.receipts, ok: r.ok, message: r.message, latestReceiptAt: r.latest_receipt_at,
 });
 
+/** A live Loyverse receipt in the shape the stock and recipe pages use. */
+function liveToReceipt(r: LiveSales['receipts'][number]): Receipt {
+  return {
+    number: r.number, type: r.type, at: new Date(r.at).toISOString(), businessDate: r.businessDate, dining: r.dining, cancelled: r.cancelled,
+    total: r.total, employee: r.employee,
+    lines: r.lines.map((l, idx) => ({ idx, itemId: l.itemId ?? null, itemName: l.item, variantName: l.variant, qty: l.qty, total: l.total,
+      modifiers: l.modifiers.map((m) => ({ group: m.group, option: m.option })) })),
+  };
+}
+
 /** Supabase sends at most 1000 rows at a time: ask page by page until everything is in. */
 async function allRows(build: () => any): Promise<any[]> {
   const out: any[] = [];
@@ -136,6 +146,19 @@ const salesFrom = (r: any): SalesRow => ({ item: r.item, cat: r.cat, qty: +r.qty
 
 export function liveStore(isOwner: () => boolean, myName: () => string = () => 'Owner'): Store {
   const db = () => sb();
+  // One Loyverse read is shared by every page for a minute
+  let cache: { at: number; p: Promise<LiveSales> } | null = null;
+  const liveOnce = (fresh = false): Promise<LiveSales> => {
+    if (fresh || !cache || Date.now() - cache.at > 60_000) {
+      const p = db().functions.invoke('loyverse-sync', { body: { action: 'live' } }).then(({ data, error }) => {
+        if (error) throw new Error('The portal could not reach the Loyverse check. ' + error.message);
+        return data as LiveSales;
+      });
+      p.catch(() => { cache = null; });
+      cache = { at: Date.now(), p };
+    }
+    return cache.p;
+  };
   return {
     mode: 'live',
     async load(): Promise<AppData> {
@@ -223,29 +246,17 @@ export function liveStore(isOwner: () => boolean, myName: () => string = () => '
       check(await db().from('rules').upsert(seedRules.map(ruleTo)));
     },
     async loadReceipts(fromIso, toIso): Promise<Receipt[]> {
-      // One day at a time keeps each answer small.
-      const out: Receipt[] = [];
-      for (let t = Date.parse(fromIso); t < Date.parse(toIso); t += 864e5) {
-        const end = new Date(Math.min(t + 864e5, Date.parse(toIso))).toISOString();
-        out.push(...((check(await db().rpc('receipt_bundle', { p_from: new Date(t).toISOString(), p_to: end })) as Receipt[]) ?? []));
-      }
-      return out;
+      // Test: sales come live from Loyverse (yesterday and today), not from a saved copy
+      const live = await liveOnce();
+      return live.receipts.map(liveToReceipt).filter((r) => r.at > fromIso && r.at <= toIso);
     },
     async salesReport(from, to): Promise<SalesReport | null> {
       return (check(await db().rpc('sales_report', { p_from: from, p_to: to })) as SalesReport) ?? null;
     },
     async loyverseMenu(): Promise<LyItem[]> {
-      const [items, variants, cats] = await Promise.all([
-        allRows(() => db().from('loyverse_items').select('*').is('deleted_at', null)),
-        allRows(() => db().from('loyverse_variants').select('variant_id, item_id')),
-        allRows(() => db().from('loyverse_categories').select('id, name')),
-      ]);
-      const catName = new Map(cats.map((c: any) => [c.id, c.name]));
-      return items.map((i: any) => ({
-        id: i.id, name: i.name, category: catName.get(i.category_id) ?? null, isComposite: i.is_composite,
-        components: (i.components ?? []).map((c: any) => ({ variantId: c.variant_id, qty: Number(c.quantity) })),
-        variantIds: variants.filter((v: any) => v.item_id === i.id).map((v: any) => v.variant_id),
-      }));
+      const { data, error } = await db().functions.invoke('loyverse-sync', { body: { action: 'menu' } });
+      if (error || !data?.ok) throw new Error('Could not read the menu from Loyverse. ' + (error?.message ?? data?.message ?? ''));
+      return data.menu as LyItem[];
     },
     async saveIngredient(i) {
       check(await db().from('ingredients').upsert(ingTo(i, myName())));
@@ -275,9 +286,7 @@ export function liveStore(isOwner: () => boolean, myName: () => string = () => '
       check(await db().from('count_item_aliases').upsert({ name, item_id: itemId }));
     },
     async liveSales() {
-      const { data, error } = await db().functions.invoke('loyverse-sync', { body: { action: 'live' } });
-      if (error) throw new Error('The portal could not reach the Loyverse check. ' + error.message);
-      return data as LiveSales;
+      return liveOnce(true);
     },
     async syncNow() {
       const { data, error } = await db().functions.invoke('loyverse-sync', { body: {} });

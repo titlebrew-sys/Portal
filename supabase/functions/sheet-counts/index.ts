@@ -22,6 +22,26 @@ type Row = {
   cleared_reason?: string | null;
 };
 type Batch = { business_date: string; shift: 1 | 2 | 'W' | '1' | '2'; area: 'Bar' | 'Kitchen' | 'Weekly'; saved_by: string; saved_at: string; rows: Row[] };
+/** A day's final orders from the sheet, in count units (what staff count: L, g, pcs...). */
+type SheetOrders = { business_date: string; items: { order_item: string; count_qty: number }[]; partial?: boolean };
+
+/** Same id every time for the same day and supplier, so re-sending replaces instead of adding. */
+async function stableId(text: string): Promise<string> {
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))).slice(0, 16);
+  h[6] = (h[6] & 0x0f) | 0x50;
+  h[8] = (h[8] & 0x3f) | 0x80;
+  const x = [...h].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20)}`;
+}
+
+const addDays = (d: string, n: number) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+
+/** Like the sheet: an order is taken as delivered on the supplier's next delivery morning (8am Dubai). */
+function deliveredAt(orderDate: string, leadDays: number, noDeliveryDays: number[]): string {
+  let d = addDays(orderDate, Math.max(1, leadDays || 1));
+  for (let i = 0; i < 7 && noDeliveryDays.includes(new Date(d + 'T00:00:00Z').getUTCDay()); i++) d = addDays(d, 1);
+  return new Date(Date.parse(d + 'T08:00:00+04:00')).toISOString();
+}
 
 const norm = (s: string) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const num = (v: unknown) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
@@ -46,6 +66,7 @@ Deno.serve(async (req) => {
     return Response.json({ ok: false, message: 'Not valid JSON' }, { status: 400 });
   }
   const batches: Batch[] = 'batches' in body ? body.batches : [body as Batch];
+  const sheetOrders: SheetOrders[] = ('orders' in body && Array.isArray((body as any).orders)) ? (body as any).orders : [];
 
   const [{ data: items }, { data: aliases }] = await Promise.all([
     db.from('count_items').select('id, name, area, has_batches, has_frozen'),
@@ -118,7 +139,46 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Orders from the sheet become deliveries, one per supplier per day
+  let ordersSaved = 0;
+  const unknownOrders = new Set<string>();
+  if (sheetOrders.length) {
+    const [{ data: rules }, { data: sups }] = await Promise.all([
+      db.from('rules').select('id, supplier_id, order_item, order_unit, pack_size, price'),
+      db.from('suppliers').select('id, lead_days, no_delivery_days'),
+    ]);
+    for (const o of sheetOrders) {
+      const d = date(o.business_date);
+      if (!d) continue;
+      const bySupplier = new Map<string, any[]>();
+      for (const it of o.items ?? []) {
+        const qty = num(it.count_qty);
+        if (!qty || qty <= 0) continue;
+        const rule = (rules ?? []).find((r: any) => norm(r.order_item) === norm(it.order_item));
+        if (!rule || !rule.supplier_id) { unknownOrders.add(String(it.order_item)); continue; }
+        const line = { ruleId: rule.id, name: rule.order_item, qty: Math.round((qty / (Number(rule.pack_size) || 1)) * 1000) / 1000, unit: rule.order_unit, price: rule.price === null ? null : Number(rule.price) };
+        bySupplier.set(rule.supplier_id, [...(bySupplier.get(rule.supplier_id) ?? []), line]);
+      }
+      // Suppliers taken off the order since the last send: remove their earlier sheet order for that day
+      const { data: earlier } = await db.from('orders').select('id, supplier_id').eq('business_date', d).eq('sent_by', 'Google Sheet');
+      if (!o.partial) for (const e of earlier ?? []) if (!bySupplier.has(e.supplier_id)) await db.from('orders').delete().eq('id', e.id);
+      for (const [supplierId, lines] of bySupplier) {
+        const s = (sups ?? []).find((x: any) => x.id === supplierId);
+        const { error } = await db.from('orders').upsert({
+          id: await stableId(`sheet-order|${d}|${supplierId}`), business_date: d, supplier_id: supplierId, lines,
+          message: 'From the Google Sheet', sent_by: 'Google Sheet', sent_at: new Date(Date.parse(d + 'T17:00:00+04:00')).toISOString(),
+          received: lines.map((l: any) => ({ ruleId: l.ruleId, qty: l.qty })), received_by: 'Google Sheet (taken as delivered next morning)',
+          received_at: deliveredAt(d, s?.lead_days ?? 1, s?.no_delivery_days ?? []), location_id: LOCATION,
+        }, { onConflict: 'id' });
+        if (error) errors.push(`Orders: ${error.message}`);
+        else ordersSaved++;
+      }
+    }
+  }
+
   const parts = [`${saved} counts saved or changed`];
+  if (ordersSaved) parts.push(`${ordersSaved} supplier orders`);
+  if (unknownOrders.size) parts.push(`order items not matched: ${[...unknownOrders].join(', ')}`);
   if (wasteSaved) parts.push(`${wasteSaved} thrown away`);
   if (unknown.size) parts.push(`names not matched: ${[...unknown].join(', ')}`);
   if (errors.length) parts.push(errors.join('; '));
@@ -127,5 +187,5 @@ Deno.serve(async (req) => {
     location_id: LOCATION, kind: 'sheet', finished_at: new Date().toISOString(), receipts: 0, ok, message: parts.join(' · '),
     details: { unknown: [...unknown], errors },
   });
-  return Response.json({ ok, saved, waste: wasteSaved, unknown: [...unknown], errors }, { status: ok ? 200 : 207 });
+  return Response.json({ ok, saved, waste: wasteSaved, orders: ordersSaved, unknown: [...unknown], unknownOrders: [...unknownOrders], errors }, { status: ok ? 200 : 207 });
 });

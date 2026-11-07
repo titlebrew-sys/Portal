@@ -1,6 +1,8 @@
 /**
  * Title Brew portal bridge: sends today's counts from this Google Sheet to the portal.
  * Made for the Title Brew daily ordering script (same LAYOUT, FIRST_ROW 8, date in Bar!C2).
+ * Sends: today's counts (Bar, Kitchen, Weekly), the last 2 days from the History tab, and the
+ * day's final orders (Today's Orders), which the portal takes as delivered the next morning.
  *
  * Add this as a NEW script file called "PortalBridge". Your other files stay as they are.
  * Settings are kept in Script Properties (Project Settings > Script Properties), never in code:
@@ -32,13 +34,14 @@ function portalBridgeSend(savedBy) {
     var url = props.getProperty('PORTAL_BRIDGE_URL');
     var secret = props.getProperty('PORTAL_BRIDGE_SECRET');
     if (!url || !secret) { portalBridgeLog_('Not sent', 'Add PORTAL_BRIDGE_URL and PORTAL_BRIDGE_SECRET in Script Properties.'); return; }
-    var batches = portalBridgeBatches_(savedBy);
-    if (!batches.length) { portalBridgeLog_('Nothing to send', 'No counts on the sheet yet today.'); return; }
+    var batches = portalBridgeBatches_(savedBy).concat(portalBridgeHistory_());
+    var orders = portalBridgeOrders_();
+    if (!batches.length && !orders.length) { portalBridgeLog_('Nothing to send', 'No counts on the sheet yet today.'); return; }
     var res = UrlFetchApp.fetch(url, {
       method: 'post',
       contentType: 'application/json',
       headers: { 'x-bridge-secret': secret },
-      payload: JSON.stringify({ batches: batches }),
+      payload: JSON.stringify({ batches: batches, orders: orders }),
       muteHttpExceptions: true,
     });
     var code = res.getResponseCode();
@@ -51,10 +54,13 @@ function portalBridgeSend(savedBy) {
 /** Shows what would be sent, in the Bridge Log tab. Sends nothing. */
 function portalBridgeTest() {
   try {
-    var batches = portalBridgeBatches_('Test');
-    if (!batches.length) portalBridgeLog_('Test', 'No counts on the sheet yet today.');
+    var batches = portalBridgeBatches_('Test').concat(portalBridgeHistory_());
+    if (!batches.length) portalBridgeLog_('Test', 'No counts found.');
     batches.forEach(function (b) {
       portalBridgeLog_('Test: ' + b.area + ' shift ' + b.shift + ' (' + b.business_date + ')', b.rows.length + ' items. First 3: ' + JSON.stringify(b.rows.slice(0, 3)));
+    });
+    portalBridgeOrders_().forEach(function (o) {
+      portalBridgeLog_('Test: orders ' + o.business_date, o.items.length + ' items. First 3: ' + JSON.stringify(o.items.slice(0, 3)));
     });
   } catch (e) {
     portalBridgeLog_('Test error', String(e && e.message ? e.message : e));
@@ -79,7 +85,6 @@ function portalBridgeBatches_(savedBy) {
   var weeklyDate = weekly ? weekly.getRange('C2').getValue() : '';
   var weeklyToday = Object.prototype.toString.call(weeklyDate) === '[object Date]' && Utilities.formatDate(weeklyDate, tz, 'yyyy-MM-dd') === day;
   var who = savedBy || 'Google Sheet';
-  var at = new Date().toISOString();
 
   // Kitchen items with a shelf life (Rules column Z) keep an old and a new batch
   var shelf = {};
@@ -89,7 +94,7 @@ function portalBridgeBatches_(savedBy) {
   }
 
   var out = [];
-  var add = function (area, shift, rows) { if (rows.length) out.push({ business_date: day, shift: shift, area: area, saved_by: who, saved_at: at, rows: rows }); };
+  var add = function (area, shift, rows) { if (rows.length) out.push({ business_date: day, shift: shift, area: area, saved_by: who, saved_at: portalBridgeCountTime_(day, shift), rows: rows }); };
   var read = function (name) {
     var sh = ss.getSheetByName(name);
     if (!sh || sh.getLastRow() < PORTAL_BRIDGE_FIRST_ROW) return [];
@@ -144,7 +149,140 @@ function portalBridgeBatches_(savedBy) {
       var v = n(r[L.Weekly.s1a - 1]);
       if (v !== null) w.push({ item: String(r[1]), qty: v });
     });
-    if (w.length) out.push({ business_date: day, shift: 'W', area: 'Weekly', saved_by: who, saved_at: at, rows: w });
+    if (w.length) out.push({ business_date: day, shift: 'W', area: 'Weekly', saved_by: who, saved_at: portalBridgeCountTime_(day, 1), rows: w });
+  }
+  return out;
+}
+
+/**
+ * When the count is taken as made: Shift 1 at 4pm, Shift 2 at closing
+ * (9pm on weekdays, 8pm on Saturday and Sunday). Dubai time.
+ */
+function portalBridgeCountTime_(day, shift) {
+  var weekday = new Date(day + 'T12:00:00Z').getUTCDay();
+  var close = weekday === 0 || weekday === 6 ? '20' : '21';
+  return new Date(day + 'T' + (shift === 2 ? close : '16') + ':00:00+04:00').toISOString();
+}
+
+function portalBridgeDayKey_(d) { return Utilities.formatDate(d, PORTAL_BRIDGE_TZ, 'yyyy-MM-dd'); }
+
+/** The last 2 days from the History tab (each day: Shift 1, Shift 2, Expiry, Cleared). */
+function portalBridgeHistory_() {
+  var ss = SpreadsheetApp.getActive();
+  var h = ss.getSheetByName('History');
+  var bar = ss.getSheetByName('Bar');
+  if (!h || !bar || h.getLastRow() < 3 || h.getLastColumn() < 3) return [];
+  var today = bar.getRange('C2').getValue();
+  if (Object.prototype.toString.call(today) !== '[object Date]') return [];
+  var todayKey = portalBridgeDayKey_(today);
+  var width = h.getLastColumn();
+  var dates = h.getRange(1, 1, 1, width).getValues()[0];
+  var labels = h.getRange(2, 1, 1, width).getValues()[0];
+  var body = h.getRange(3, 1, h.getLastRow() - 2, width).getValues();
+  var out = [];
+  var wanted = [1, 2].map(function (n) {
+    var d = new Date(Date.parse(todayKey + 'T12:00:00Z') - n * 864e5);
+    return d.toISOString().slice(0, 10);
+  });
+  wanted.forEach(function (day) {
+    var c = -1;
+    for (var i = 2; i < width; i++) {
+      if (String(labels[i]) === 'Shift 1' && Object.prototype.toString.call(dates[i]) === '[object Date]' && portalBridgeDayKey_(dates[i]) === day) { c = i; break; }
+    }
+    if (c < 0) return;
+    var groups = {};
+    var push = function (area, shift, row) {
+      var k = area + '|' + shift;
+      if (!groups[k]) groups[k] = { business_date: day, shift: shift, area: area, saved_by: 'Google Sheet (History)', saved_at: portalBridgeCountTime_(day, shift === 'W' ? 1 : shift), rows: [] };
+      groups[k].rows.push(row);
+    };
+    body.forEach(function (r) {
+      var area = String(r[0]), item = String(r[1]);
+      if (!item || ['Bar', 'Kitchen', 'Weekly'].indexOf(area) < 0) return;
+      var s1 = r[c], s2 = r[c + 1], exp = String(r[c + 2] || ''), cleared = String(r[c + 3] || '');
+      if (area === 'Weekly') { var w = portalBridgeNum_(s1); if (w !== null) push('Weekly', 'W', { item: item, qty: w }); return; }
+      if (area === 'Bar') {
+        if (portalBridgeNum_(s1) !== null) push('Bar', 1, { item: item, qty: portalBridgeNum_(s1) });
+        if (portalBridgeNum_(s2) !== null) push('Bar', 2, { item: item, qty: portalBridgeNum_(s2) });
+        return;
+      }
+      var e = portalBridgeExpiry_(exp, day);
+      var cl = cleared.match(/(^|;)\s*([\d.]+)\s+(expired|damaged|not sold)/i);
+      var clearedQty = cl ? Number(cl[2]) : null;
+      var reason = cl ? PORTAL_BRIDGE_REASONS.filter(function (x) { return x.toLowerCase() === cl[3].toLowerCase(); })[0] : null;
+      var a = portalBridgeParseCount_(s1);
+      if (a) push('Kitchen', 1, Object.assign({ item: item }, a, e));
+      var b = portalBridgeParseCount_(s2);
+      if (b && clearedQty !== null && b.old !== undefined) b.old = 0; // the old number was what was thrown away
+      if (b || clearedQty) push('Kitchen', 2, Object.assign({ item: item }, b || {}, e, clearedQty ? { cleared_qty: clearedQty, cleared_reason: reason } : {}));
+    });
+    Object.keys(groups).forEach(function (k) { out.push(groups[k]); });
+  });
+  return out;
+}
+
+/** "0 old, 2 new, 22 frozen" / "1 old, 3 new" / "5" -> parts; '' -> null. */
+function portalBridgeParseCount_(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  if (typeof v === 'number') return { qty: v };
+  var s = String(v);
+  var m = s.match(/([\d.]+)\s*old,\s*([\d.]+)\s*new(?:,\s*([\d.]+)\s*frozen)?/i);
+  if (m) return m[3] !== undefined ? { old: Number(m[1]), new: Number(m[2]), frozen: Number(m[3]) } : { old: Number(m[1]), new: Number(m[2]) };
+  var n = portalBridgeNum_(s);
+  return n === null ? null : { qty: n };
+}
+
+/** "4 Nov / 6 Nov" -> old and new expiry dates (year taken from the count day). */
+function portalBridgeExpiry_(text, day) {
+  var months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  var parse = function (p) {
+    var m = String(p || '').trim().match(/^(\d{1,2})\s+([A-Za-z]{3})/);
+    if (!m) return null;
+    var mon = months.indexOf(m[2].toLowerCase());
+    if (mon < 0) return null;
+    var y = Number(day.slice(0, 4));
+    if (mon === 0 && day.slice(5, 7) === '12') y++;
+    if (mon === 11 && day.slice(5, 7) === '01') y--;
+    return y + '-' + ('0' + (mon + 1)).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  };
+  var parts = String(text || '').split('/');
+  return { old_expiry: parse(parts[0]), new_expiry: parse(parts[1]) };
+}
+
+/**
+ * Final orders, in count units: today's from Today's Orders (final order x count units per order unit),
+ * yesterday's milk and bakery orders from the Usage Log. The portal takes them as delivered next morning.
+ */
+function portalBridgeOrders_() {
+  var ss = SpreadsheetApp.getActive();
+  var bar = ss.getSheetByName('Bar');
+  var today = bar ? bar.getRange('C2').getValue() : '';
+  if (Object.prototype.toString.call(today) !== '[object Date]') return [];
+  var todayKey = portalBridgeDayKey_(today);
+  var out = [];
+  var to = ss.getSheetByName("Today's Orders");
+  // Only from 4pm: before the Shift 1 count the tab shows suggestions from empty counts
+  var hourNow = Number(Utilities.formatDate(new Date(), PORTAL_BRIDGE_TZ, 'H'));
+  if (to && to.getLastRow() > 0 && hourNow >= 16) {
+    var items = [];
+    to.getRange(1, 1, to.getLastRow(), 19).getValues().forEach(function (r) {
+      // A item, F final order, Q rule, S count units per order unit
+      if (!r[0] || !r[16]) return;
+      var qty = (Number(r[5]) || 0) * (Number(r[18]) || 1);
+      if (qty > 0) items.push({ order_item: String(r[0]), count_qty: qty });
+    });
+    if (items.length) out.push({ business_date: todayKey, items: items });
+  }
+  var log = ss.getSheetByName('Usage Log');
+  if (log && log.getLastRow() >= 2) {
+    var yKey = new Date(Date.parse(todayKey + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
+    var yItems = [];
+    log.getRange(2, 1, log.getLastRow() - 1, 5).getValues().forEach(function (r) {
+      // date, item, stock good for tomorrow, total stock, ordered (count units)
+      if (Object.prototype.toString.call(r[0]) === '[object Date]' && portalBridgeDayKey_(r[0]) === yKey && Number(r[4]) > 0) yItems.push({ order_item: String(r[1]), count_qty: Number(r[4]) });
+    });
+    // Only milk and bakery (the Usage Log), so it must not remove yesterday's other supplier orders
+    if (yItems.length) out.push({ business_date: yKey, items: yItems, partial: true });
   }
   return out;
 }

@@ -11,7 +11,7 @@ const WEEKLY = (ing: Ingredient) => ing.countFrom.includes('wk-');
 
 export function Stock() {
   const { data, store, today } = useApp();
-  const [from, setFrom] = useState(addDays(today, -6));
+  const [from, setFrom] = useState(addDays(today, -1));
   const [to, setTo] = useState(today);
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(null);
@@ -37,6 +37,7 @@ export function Stock() {
       <MobileWho />
       <Head eyebrow="Stock" title="Stock by ingredient" sub="Expected stock = last count + arrived − used by sales − thrown away. Tap an ingredient to see every day." />
       <DateRange from={from} to={to} today={today} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+      <div className="banner info"><span>For now: sales come live from Loyverse for <b>yesterday and today</b>. Counts come from your Google Sheet. Deliveries are taken from the sheet's orders, as arriving the next morning.</span></div>
       {sd.error && <div className="banner bad">Could not load sales: {sd.error}</div>}
       {!data.book.ingredients.length && <div className="banner warn">No ingredients yet. The owner sets them up on Items and rules, Ingredients.</div>}
       {beans.length > 0 && (

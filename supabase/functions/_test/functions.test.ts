@@ -17,6 +17,8 @@ function fakeLoyverse(receipts: any[], status = 200) {
     if (path === 'stores') return { stores: [{ id: 's1', name: 'Title Brew Bay Square' }] };
     if (path === 'employees') return { employees: [{ id: 'e1', name: 'Arsen' }] };
     if (path === 'receipts') return { receipts, cursor: null };
+    if (path === 'items') return { items: [{ id: 'it1', item_name: 'Latte', is_composite: true, category_id: 'c1', components: [{ variant_id: 'v-coffee', quantity: 18 }], variants: [{ variant_id: 'v-latte' }] }] };
+    if (path === 'categories') return { categories: [{ id: 'c1', name: 'Hot Drinks' }] };
     return {};
   };
 }
@@ -45,6 +47,12 @@ Deno.test({ name: 'loyverse-sync live: the owner gets every receipt for yesterda
   assert(text.includes('Connected to Loyverse (Title Brew)'), text);
   assert(text.includes('Last sale 3 minutes ago (receipt 1-1)'), text);
   assert(text.includes('1 refund, 1 cancelled receipt'), text);
+  assertEquals(r1.lines[0].itemId, 'it1');
+  // The menu with components, for setting up recipes (owner only)
+  const menu = await (await run(new Request('http://x', { method: 'POST', headers: { authorization: 'Bearer owner-jwt' }, body: JSON.stringify({ action: 'menu' }) }))).json();
+  assertEquals(menu.menu[0].components, [{ variantId: 'v-coffee', qty: 18 }]);
+  const denied = await run(new Request('http://x', { method: 'POST', body: JSON.stringify({ action: 'menu' }) }));
+  assertEquals(denied.status, 403);
   // The check is saved for the portal's Sync status
   assertEquals(tables.get('sync_runs')!.at(-1)!.ok, true);
 });
@@ -121,3 +129,37 @@ Deno.test({ name: 'sheet-counts: secret required, counts saved once, kitchen tot
   assert(tables.get('sync_runs')!.at(-1)!.message.includes('names not matched: Mystery syrup'));
 });
 
+
+Deno.test({ name: 'sheet-counts: sheet orders become next-morning deliveries, once per supplier and day', sanitizeOps: false, sanitizeResources: false }, async () => {
+  tables.clear();
+  tables.set('count_items', []);
+  tables.set('rules', [
+    { id: 'rule-milk', supplier_id: 'sup-almarai', order_item: 'Full Fat Milk 2L', order_unit: 'pcs', pack_size: 2, price: null },
+    { id: 'rule-avo', supplier_id: 'sup-the-bakery', order_item: 'Avocado Chicken Sandwich', order_unit: 'pcs', pack_size: 1, price: 14.25 },
+  ]);
+  tables.set('suppliers', [{ id: 'sup-almarai', lead_days: 1, no_delivery_days: [0] }, { id: 'sup-the-bakery', lead_days: 1, no_delivery_days: [0] }]);
+  installFetch(() => ({}));
+  const run = await loadFunction('../sheet-counts/index.ts', { BRIDGE_SECRET: 's3cret' });
+  // Saturday 7 Nov order: no Sunday delivery, so it arrives Monday morning
+  const body = { batches: [], orders: [{ business_date: '2026-11-07', items: [{ order_item: 'Full Fat Milk 2L', count_qty: 12 }, { order_item: 'Avocado Chicken Sandwich', count_qty: 2 }, { order_item: 'Mystery', count_qty: 1 }] }] };
+  const post = () => run(new Request('http://x', { method: 'POST', headers: { 'x-bridge-secret': 's3cret' }, body: JSON.stringify(body) }));
+  const res = await (await post()).json();
+  assertEquals([res.orders, res.unknownOrders], [2, ['Mystery']]);
+  await post();
+  const orders = tables.get('orders')!;
+  assertEquals(orders.length, 2); // sent twice, still one per supplier
+  const milk = orders.find((o) => o.supplier_id === 'sup-almarai')!;
+  assertEquals(milk.received, [{ ruleId: 'rule-milk', qty: 6 }]); // 12 L = 6 x 2L bottles
+  assertEquals(milk.received_at, '2026-11-09T04:00:00.000Z'); // Monday 8am Dubai
+  // Later the bakery order is removed in the sheet: its earlier order goes too
+  body.orders[0].items = [{ order_item: 'Full Fat Milk 2L', count_qty: 12 }];
+  await post();
+  assertEquals(tables.get('orders')!.map((o) => o.supplier_id), ['sup-almarai']);
+  // A partial list (milk only, from the Usage Log) does not remove other suppliers
+  body.orders[0].items = [{ order_item: 'Avocado Chicken Sandwich', count_qty: 2 }];
+  await post();
+  (body.orders[0] as any).partial = true;
+  body.orders[0].items = [{ order_item: 'Full Fat Milk 2L', count_qty: 12 }];
+  await post();
+  assertEquals(tables.get('orders')!.map((o) => o.supplier_id).sort(), ['sup-almarai', 'sup-the-bakery']);
+});

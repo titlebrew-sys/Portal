@@ -131,6 +131,7 @@ export async function readLoyverse(now = new Date()) {
         payments: (r.payments ?? []).map((p: Json) => ({ name: p.name ?? p.type ?? 'Payment', amount: Number(p.money_amount ?? 0) })),
         lines: (r.line_items ?? []).map((l: Json) => ({
           item: l.item_name ?? '',
+          itemId: l.item_id ?? null,
           inMenu: !!l.item_id,
           variant: l.variant_name ?? null,
           qty: Number(l.quantity ?? 0),
@@ -184,6 +185,23 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const startedAt = new Date().toISOString();
   const owner = await isOwner(req);
+  const ask = await req.clone().json().catch(() => ({}));
+  // The Loyverse menu with recipes (components), so the portal can set up its own recipes. Owner only.
+  if (ask?.action === 'menu') {
+    if (!owner) return Response.json({ ok: false, message: 'Only the owner can read the menu.' }, { status: 403, headers: CORS });
+    try {
+      const [items, categories] = await Promise.all([pages('items', 'items'), pages('categories', 'categories')]);
+      const cat = new Map(categories.map((c) => [c.id, c.name ?? null]));
+      const menu = items.filter((i) => !i.deleted_at).map((i) => ({
+        id: i.id, name: i.item_name ?? '', category: cat.get(i.category_id) ?? null, isComposite: !!i.is_composite,
+        components: (i.components ?? []).map((c: Json) => ({ variantId: c.variant_id, qty: Number(c.quantity ?? 0) })),
+        variantIds: (i.variants ?? []).map((v: Json) => v.variant_id),
+      }));
+      return Response.json({ ok: true, menu }, { headers: CORS });
+    } catch (e) {
+      return Response.json({ ok: false, message: (e as Error).message }, { status: 500, headers: CORS });
+    }
+  }
   let result: Awaited<ReturnType<typeof readLoyverse>> | null = null;
   let problem: string | null = null;
   try {

@@ -35,6 +35,11 @@ function rest(url: URL, method: string, body: any, headers: Headers): Response {
     }
     return reply(out);
   }
+  if (method === 'DELETE') {
+    const keep = rows.filter((r) => !match(r));
+    tables.set(t, keep);
+    return reply([]);
+  }
   if (method === 'PATCH') {
     const hit = rows.filter(match);
     hit.forEach((r) => Object.assign(r, body));
