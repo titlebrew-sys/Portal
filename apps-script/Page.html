@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ground: #F5F1EA; --card: #FFFFFF; --ink: #1E1A16; --muted: #5E554D; --line: #E0D7CA; --field: #CFC5B8;
+    --brew: #3B2A20; --s1: #1F4E8C; --s1bg: #E6EEF8; --s2: #2D6A4F; --s2bg: #E4F1EA; --warn: #6A4A0C; --warnbg: #FFF4E0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ground); color: var(--ink); font-family: 'DM Sans', system-ui, -apple-system, sans-serif; }
+  body { min-height: 100vh; }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  .wrap { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+  .hidden { display: none !important; }
+
+  /* PIN */
+  .pin { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; padding: 32px 24px; text-align: center; }
+  .brand { font-size: 14px; font-weight: 600; color: var(--muted); }
+  .pin h1 { margin: 6px 0 0; font-size: 30px; }
+  .pin p { margin: 6px 0 0; color: var(--muted); font-size: 15px; min-height: 20px; }
+  .pin p.err { color: #9B1C1C; font-weight: 600; }
+  .dots { display: flex; gap: 16px; }
+  .dot { width: 16px; height: 16px; border-radius: 8px; border: 2px solid var(--brew); }
+  .dot.on { background: var(--brew); }
+  .pad { display: grid; grid-template-columns: repeat(3, 76px); gap: 14px; }
+  .key { height: 64px; border-radius: 32px; border: 1px solid #D8CFC2; background: var(--card); font-size: 24px; font-weight: 600; color: var(--ink); }
+  .key.plain { border: none; background: transparent; font-size: 16px; }
+  .key.blank { visibility: hidden; }
+
+  /* Home */
+  .top { padding: 40px 20px 8px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .top .date { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .top h1 { margin: 4px 0 0; font-size: 26px; }
+  .pill-btn { height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid #D8CFC2; background: var(--card); font-size: 14px; font-weight: 500; color: var(--ink); }
+  .block { padding: 16px 20px 0; }
+  .block h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--muted); }
+  .shifts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .shift { text-align: left; min-height: 84px; padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .shift b { display: block; font-size: 18px; }
+  .shift span { display: block; font-size: 13px; margin-top: 4px; font-weight: 500; }
+  .shift.on1 { border: 2px solid var(--s1); background: var(--s1bg); color: var(--s1); }
+  .shift.on2 { border: 2px solid var(--s2); background: var(--s2bg); color: var(--s2); }
+  .areas { display: flex; flex-direction: column; gap: 10px; padding-bottom: 28px; }
+  .area { display: flex; align-items: center; gap: 14px; text-align: left; min-height: 76px; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .area .t { flex: 1; min-width: 0; }
+  .area b { display: block; font-size: 18px; }
+  .area span { display: block; font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+  /* Count */
+  .head { position: sticky; top: 0; z-index: 2; padding: 16px 16px 12px; background: var(--ground); border-bottom: 1px solid var(--line); }
+  .head-row { display: flex; align-items: center; gap: 10px; }
+  .back { width: 44px; height: 44px; border-radius: 22px; border: 1px solid #D8CFC2; background: var(--card); display: flex; align-items: center; justify-content: center; }
+  .head h1 { margin: 0; font-size: 22px; flex: 1; }
+  .tag { padding: 6px 12px; border-radius: 14px; font-size: 13px; font-weight: 700; }
+  .progress { margin-top: 12px; display: flex; align-items: center; gap: 10px; }
+  .bar { flex: 1; height: 8px; border-radius: 4px; background: #E4DCD0; overflow: hidden; }
+  .fill { height: 8px; border-radius: 4px; width: 0; }
+  .progress span { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .list { flex: 1; padding: 12px 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+  .note-box { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 14px; color: #3F3832; }
+  .note-box.warn { background: var(--warnbg); border-color: #E8C989; color: var(--warn); font-weight: 500; }
+  .sec { margin-top: 10px; font-size: 15px; font-weight: 700; color: var(--muted); }
+  .item { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .item.row { flex-direction: row; align-items: center; gap: 12px; }
+  .item .info { flex: 1; min-width: 0; }
+  .item .name { font-size: 16px; font-weight: 600; }
+  .item .ref { font-size: 13px; color: var(--muted); margin-top: 2px; white-space: pre-wrap; }
+  .item .hint { font-size: 12px; color: #6B625A; margin-top: 2px; }
+  .unit { width: 46px; font-size: 14px; color: var(--muted); font-weight: 500; }
+  .num { width: 84px; height: 46px; border: 1.5px solid var(--field); border-radius: 10px; padding: 0 10px; font: 600 17px 'DM Sans', system-ui, sans-serif; color: var(--ink); background: var(--card); text-align: right; }
+  .num.wide { width: 100%; }
+  .num.missing, .sel.missing { border: 2px solid #B42318; background: #FEF3F2; }
+  .num.check { border: 2px solid #B54708; background: #FFFAEB; }
+  .stepper { display: flex; align-items: center; gap: 6px; }
+  .stepper .num { width: 64px; text-align: center; }
+  .stp { width: 44px; height: 46px; border-radius: 10px; border: 1.5px solid var(--field); background: #FBF9F5; font-size: 22px; font-weight: 600; color: var(--ink); line-height: 1; }
+  .stp:disabled { opacity: 0.5; }
+  .item.row { flex-wrap: wrap; }
+  .item.row .info { flex: 1 1 150px; }
+  .ctl { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .fields { display: flex; flex-direction: column; gap: 8px; }
+  .frow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .flab { font-size: 14px; color: var(--muted); font-weight: 600; }
+  .frow .sel { width: 168px; }
+  .wrap { overflow-x: hidden; }
+  .item, .item > *, .frow > *, .grid2 > * { min-width: 0; }
+  .flab { flex: 1 1 auto; }
+  .stepper { flex: none; gap: 5px; }
+  .stp { width: 40px; }
+  .stepper .num { width: 56px; padding: 0 4px; }
+  .frow .sel { width: auto; flex: 0 1 150px; }
+  .date { min-width: 0; max-width: 100%; }
+  .acc { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .acc.done { border-color: #9CC5B0; }
+  .acc-head { width: 100%; min-height: 58px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border: none; background: transparent; color: var(--ink); text-align: left; }
+  .acc-title { flex: 1; font-size: 17px; font-weight: 700; }
+  .acc-cnt { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .acc.done .acc-cnt { color: var(--s2); }
+  .chev { transition: transform 0.15s; }
+  .acc.open .chev { transform: rotate(180deg); }
+  .acc-body { padding: 0 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .acc-body .item { background: #FBF9F5; padding: 12px; }
+  .next-sec { height: 48px; border-radius: 12px; border: 1px solid #D8CFC2; background: var(--card); color: var(--ink); font-size: 15px; font-weight: 600; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .fl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .sel, .date, .txt { width: 100%; height: 46px; border: 1.5px solid var(--field); border-radius: 10px; padding: 0 8px; font: 500 15px 'DM Sans', system-ui, sans-serif; color: var(--ink); background: var(--card); }
+  .date { height: 42px; border-width: 1px; background: #FBF9F5; font-size: 14px; }
+  .txt { height: 42px; border-width: 1px; font-weight: 400; }
+  input:disabled, select:disabled { background: #EFEAE2; color: var(--muted); }
+  .savebar { position: sticky; bottom: 0; padding: 12px 16px 20px; background: var(--card); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+  .savebar .msg { font-size: 13px; color: var(--muted); text-align: center; }
+  .savebar .msg.err { color: #9B1C1C; font-weight: 600; }
+  .save { height: 54px; border-radius: 27px; border: none; color: #FFFFFF; font-size: 17px; font-weight: 700; }
+  .save:disabled { opacity: 0.6; }
+
+  /* Saved */
+  .done { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 32px 24px; text-align: center; }
+  .tick { width: 84px; height: 84px; border-radius: 42px; background: var(--s2bg); display: flex; align-items: center; justify-content: center; }
+  .done h1 { margin: 0; font-size: 26px; }
+  .done p { margin: 0; font-size: 16px; color: #3F3832; max-width: 320px; }
+  .primary { height: 52px; padding: 0 28px; border-radius: 26px; border: none; background: var(--brew); color: #FFFFFF; font-size: 16px; font-weight: 600; }
+  .overlay { position: fixed; inset: 0; z-index: 20; background: rgba(30, 26, 22, 0.45); display: flex; align-items: flex-end; justify-content: center; }
+  .sheet { width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; background: var(--card); border-radius: 20px 20px 0 0; padding: 20px 16px 24px; }
+  .sheet h2 { margin: 0; font-size: 20px; }
+  .sheet p { margin: 6px 0 12px; font-size: 14px; color: var(--muted); }
+  .h-list { display: flex; flex-direction: column; gap: 10px; }
+  .h-item { border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .h-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .h-opt { min-height: 48px; border-radius: 12px; border: 1.5px solid var(--field); background: #FBF9F5; color: var(--ink); font-size: 14px; font-weight: 600; padding: 6px 8px; }
+  .h-conf { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--ink); background: var(--warnbg); border: 1px solid #E8C989; border-radius: 10px; padding: 10px; }
+  .h-conf input { width: 22px; height: 22px; flex: none; margin: 0; accent-color: var(--s2); }
+  .h-opt.on { border-color: var(--s2); background: var(--s2bg); color: var(--s2); }
+  .h-actions { display: flex; gap: 10px; justify-content: space-between; margin-top: 16px; }
+  .h-actions .primary:disabled { opacity: 0.5; }
+  .loading { padding: 40px 20px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section id="pinScreen" class="pin">
+    <div>
+      <div class="brand">Title Brew</div>
+      <h1>Stock count</h1>
+      <p id="pinMsg">Enter your PIN</p>
+    </div>
+    <div class="dots" id="dots"></div>
+    <div class="pad" id="pad"></div>
+  </section>
+
+  <section id="homeScreen" class="hidden">
+    <div class="top">
+      <div>
+        <div class="date" id="homeDate"></div>
+        <h1 id="hello"></h1>
+      </div>
+      <button class="pill-btn" id="lockBtn" type="button">Lock</button>
+    </div>
+    <div class="block">
+      <h2>Choose shift</h2>
+      <div class="shifts">
+        <button class="shift" id="s1Btn" type="button"><b>Shift 1</b><span id="s1Sub">Before 3:30pm, used for orders</span></button>
+        <button class="shift" id="s2Btn" type="button"><b>Shift 2</b><span id="s2Sub">Closing count at 9pm</span></button>
+      </div>
+    </div>
+    <div class="block">
+      <h2>Choose area</h2>
+      <div class="areas" id="areas"></div>
+    </div>
+  </section>
+
+  <section id="countScreen" class="hidden" style="display:flex; flex-direction:column; flex:1">
+    <div class="head" id="countHead">
+      <div class="head-row">
+        <button class="back" id="backBtn" type="button" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E1A16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+        </button>
+        <h1 id="areaTitle"></h1>
+        <span class="tag" id="shiftTag"></span>
+      </div>
+      <div class="progress"><div class="bar"><div class="fill" id="fill"></div></div><span id="progText"></span></div>
+    </div>
+    <div class="list" id="list"></div>
+    <div class="savebar" id="saveBar">
+      <div class="msg" id="saveMsg"></div>
+      <button class="save" id="saveBtn" type="button">Save counts</button>
+    </div>
+  </section>
+
+  <section id="doneScreen" class="done hidden">
+    <div class="tick"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></div>
+    <h1>Saved</h1>
+    <p id="doneMsg"></p>
+    <button class="primary" id="doneHome" type="button">Back to start</button>
+    <button class="pill-btn" id="doneFix" type="button">Fix a number</button>
+  </section>
+
+</div>
+<div id="higherBox" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="higherTitle">
+  <div class="sheet">
+    <h2 id="higherTitle">Higher than Shift 1</h2>
+    <p>These items have more than at Shift 1. Choose what happened for each one.</p>
+    <div id="higherList" class="h-list"></div>
+    <div class="h-actions">
+      <button type="button" class="pill-btn" id="higherBack">Back to counts</button>
+      <button type="button" class="primary" id="higherGo">Save counts</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var S = { inputs: [], selects: [], acc: {}, open: '', token: '', name: '', pin: '', shift: '1', area: 'Bar', data: null, values: {}, loaded: {}, home: null, busy: false };
+  var $ = function (id) { return document.getElementById(id); };
+  var screens = ['pinScreen', 'homeScreen', 'countScreen', 'doneScreen'];
+
+  function store(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+  function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  function show(id) {
+    screens.forEach(function (s) { $(s).classList.add('hidden'); });
+    $(id).classList.remove('hidden');
+    window.scrollTo(0, 0);
+  }
+  function call(fn, args, ok, fail) {
+    var r = google.script.run.withSuccessHandler(function (res) {
+      if (res && res.expired) { signOut('Please enter your PIN again.'); return; }
+      ok(res);
+    }).withFailureHandler(function (err) { if (fail) fail(err); });
+    r[fn].apply(r, args);
+  }
+
+  /* PIN */
+  function drawDots() {
+    var d = $('dots'); d.innerHTML = '';
+    for (var i = 0; i < 4; i++) d.appendChild(el('span', 'dot' + (i < S.pin.length ? ' on' : '')));
+  }
+  function drawPad() {
+    var p = $('pad'); p.innerHTML = '';
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'Del'].forEach(function (k) {
+      var b = el('button', 'key' + (k === '' ? ' blank' : '') + (k === 'Del' ? ' plain' : ''), k);
+      b.type = 'button';
+      if (k === 'Del') b.setAttribute('aria-label', 'Delete');
+      b.onclick = function () { pressKey(k); };
+      p.appendChild(b);
+    });
+  }
+  function pressKey(k) {
+    if (S.busy || k === '') return;
+    if (k === 'Del') { S.pin = S.pin.slice(0, -1); drawDots(); return; }
+    if (S.pin.length >= 4) return;
+    S.pin += k; drawDots();
+    if (S.pin.length === 4) {
+      S.busy = true; setPinMsg('Checking...', false);
+      call('spLogin', [S.pin], function (res) {
+        S.busy = false; S.pin = ''; drawDots();
+        if (!res.ok) { setPinMsg(res.msg, true); return; }
+        S.token = res.token; S.name = res.name; store('tb_token', res.token);
+        goHome();
+      }, function () { S.busy = false; S.pin = ''; drawDots(); setPinMsg('No connection. Try again.', true); });
+    }
+  }
+  function setPinMsg(t, err) { $('pinMsg').textContent = t; $('pinMsg').className = err ? 'err' : ''; }
+  function signOut(msg) {
+    if (S.token) call('spLogout', [S.token], function () {});
+    S.token = ''; S.name = ''; store('tb_token', null);
+    setPinMsg(msg || 'Enter your PIN', !!msg); show('pinScreen');
+  }
+
+  /* Home */
+  function goHome() {
+    show('homeScreen');
+    $('hello').textContent = S.name ? 'Hi ' + S.name : 'Loading...';
+    call('spHome', [S.token], function (h) {
+      S.home = h; S.name = h.name;
+      $('homeDate').textContent = h.today;
+      $('hello').textContent = 'Hi ' + h.name;
+      drawHome();
+    }, function () { $('hello').textContent = 'No connection'; });
+  }
+  function drawHome() {
+    var h = S.home; if (!h) return;
+    $('s1Btn').className = 'shift' + (S.shift === '1' ? ' on1' : '');
+    $('s2Btn').className = 'shift' + (S.shift === '2' ? ' on2' : '');
+    $('s1Sub').textContent = h.locks.night ? 'Closed until 4am' : (h.locks.s1 ? 'Locked after 5pm, view only' : 'Before 3:30pm, used for orders');
+    $('s2Sub').textContent = h.locks.night ? 'Closed until 4am' : 'Closing count at 9pm';
+    var a = $('areas'); a.innerHTML = '';
+    ['Bar', 'Kitchen', 'Weekly'].forEach(function (name) {
+      var b = el('button', 'area'); b.type = 'button';
+      var t = el('span', 't');
+      t.appendChild(el('b', '', name));
+      var st = name === 'Weekly' ? h.status.Weekly : (h.status[name + S.shift] || 'Not started');
+      t.appendChild(el('span', '', st));
+      b.appendChild(t);
+      b.insertAdjacentHTML('beforeend', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B625A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>');
+      b.onclick = function () { openArea(name); };
+      a.appendChild(b);
+    });
+  }
+
+  /* Count */
+  function draftKey() { return 'tbdraft|' + (S.data ? S.data.today : '') + '|' + S.area + '|' + S.shift; }
+  function k(item, key) { return item + '\u0001' + key; }
+
+  function openArea(area) {
+    S.area = area; S.data = null;
+    show('countScreen');
+    $('areaTitle').textContent = area;
+    $('list').innerHTML = ''; $('list').appendChild(el('div', 'loading', 'Loading items...'));
+    $('saveBar').classList.add('hidden');
+    paintTag();
+    call('spLoad', [S.token, area, S.shift], function (d) {
+      S.data = d; S.values = {}; S.loaded = {};
+      d.sections.forEach(function (sec) {
+        sec.items.forEach(function (it) {
+          it.fields.forEach(function (f) { S.loaded[k(it.name, f.key)] = f.value; });
+          if (it.showExp) { S.loaded[k(it.name, 'expOld')] = it.expOld; S.loaded[k(it.name, 'expNew')] = it.expNew; }
+        });
+      });
+      for (var key in S.loaded) S.values[key] = S.loaded[key];
+      if (!d.locked) {
+        var draft = read(draftKey());
+        if (draft) { try { var dr = JSON.parse(draft); for (var x in dr) if (x in S.values) S.values[x] = dr[x]; } catch (e) {} }
+      }
+      drawList();
+    }, function () {
+      $('list').innerHTML = ''; $('list').appendChild(el('div', 'note-box warn', 'Could not load. Check your signal and go back to try again.'));
+    });
+  }
+
+  function paintTag() {
+    var col = S.area === 'Weekly' ? 'var(--brew)' : (S.shift === '1' ? 'var(--s1)' : 'var(--s2)');
+    var bg = S.area === 'Weekly' ? '#EDE6DC' : (S.shift === '1' ? 'var(--s1bg)' : 'var(--s2bg)');
+    var t = $('shiftTag'); t.textContent = S.area === 'Weekly' ? 'Weekly' : 'Shift ' + S.shift;
+    t.style.color = col; t.style.background = bg;
+    $('fill').style.background = col; $('saveBtn').style.background = col;
+  }
+
+  function secTitle(t) { return String(t).replace(/^Kitchen /, ''); }
+
+  function numInput(item, f, locked, wide) {
+    var i = el('input', 'num' + (wide ? ' wide' : ''));
+    i.type = 'text'; i.inputMode = 'decimal'; i.autocomplete = 'off';
+    i.value = S.values[k(item.name, f.key)] || '';
+    i.disabled = locked;
+    i.setAttribute('aria-label', item.name + ' ' + f.label);
+    i.oninput = function () { i.classList.remove('missing'); i.classList.remove('check'); setVal(item.name, f.key, i.value); };
+    S.inputs.push({ el: i, item: item.name, key: f.key, sec: item.sec });
+    if (!item.step) return i;
+    var w = el('div', 'stepper');
+    var minus = el('button', 'stp', '−'); minus.type = 'button'; minus.disabled = locked;
+    minus.setAttribute('aria-label', 'One less ' + item.name);
+    var plus = el('button', 'stp', '+'); plus.type = 'button'; plus.disabled = locked;
+    plus.setAttribute('aria-label', 'One more ' + item.name);
+    var bump = function (d) {
+      var cur = String(i.value).trim().replace(',', '.');
+      var n = cur === '' || isNaN(Number(cur)) ? null : Number(cur);
+      var next = n === null ? (d > 0 ? 1 : 0) : Math.max(0, Math.round((n + d) * 100) / 100);
+      i.value = String(next);
+      i.oninput();
+    };
+    minus.onclick = function () { bump(-1); };
+    plus.onclick = function () { bump(1); };
+    w.appendChild(minus); w.appendChild(i); w.appendChild(plus);
+    return w;
+  }
+
+  // Kitchen sections open one at a time
+  function openSec(title) {
+    S.open = title;
+    for (var t in S.acc) {
+      var on = t === title;
+      S.acc[t].body.classList.toggle('hidden', !on);
+      S.acc[t].wrap.classList.toggle('open', on);
+      S.acc[t].head.setAttribute('aria-expanded', on ? 'true' : 'false');
+    }
+  }
+  function reveal(sec, node) {
+    if (S.acc && S.acc[sec]) openSec(sec);
+    setTimeout(function () { node.scrollIntoView({ block: 'center' }); if (node.focus) node.focus(); }, 30);
+  }
+
+  function drawList() {
+    var d = S.data, L = $('list'); L.innerHTML = ''; S.inputs = []; S.selects = []; S.acc = {};
+    if (d.night) L.appendChild(el('div', 'note-box warn', 'Counting is closed from 11pm until 4am. You can look but not change.'));
+    else if (d.locked) L.appendChild(el('div', 'note-box warn', 'Shift 1 locked at 5pm. You can look but not change.'));
+    if (S.area === 'Weekly') L.appendChild(el('div', 'note-box', 'Count once a week. Saving also sets today as the count date.'));
+    if (S.area === 'Kitchen' && !d.locked) {
+      L.appendChild(el('div', 'note-box', (d.expLocked ? 'Expiry dates lock at 5pm with Shift 1.' : 'Expiry dates are filled in for you. Only change them if the package says otherwise.') + ' Count sections in any order.' +
+        (S.shift === '2' ? ' Choose Cleared? for old baked croissants and for old stock that expires today, is damaged or not sold. Old stock still in date can stay without it.' : '')));
+    }
+    var accordion = S.area === 'Kitchen' && d.sections.length > 1;
+    var firstOpen = null;
+    d.sections.forEach(function (sec, si) {
+      var host = L;
+      if (accordion) {
+        var wrap = el('div', 'acc');
+        var head = el('button', 'acc-head'); head.type = 'button';
+        var ht = el('span', 'acc-title', secTitle(sec.title));
+        var hc = el('span', 'acc-cnt', '');
+        head.appendChild(ht); head.appendChild(hc);
+        head.insertAdjacentHTML('beforeend', '<svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5E554D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>');
+        var body = el('div', 'acc-body hidden');
+        head.onclick = function () { openSec(S.open === sec.title ? '' : sec.title); };
+        wrap.appendChild(head); wrap.appendChild(body); L.appendChild(wrap);
+        S.acc[sec.title] = { wrap: wrap, head: head, body: body, cnt: hc };
+        host = body;
+        if (!firstOpen && !sec.items.every(filled)) firstOpen = sec.title;
+        var next = d.sections[si + 1];
+        if (next) {
+          setTimeout(function () {
+            var nb = el('button', 'next-sec', 'Next: ' + secTitle(next.title)); nb.type = 'button';
+            nb.onclick = function () { openSec(next.title); S.acc[next.title].wrap.scrollIntoView({ block: 'start' }); };
+            body.appendChild(nb);
+          }, 0);
+        }
+      }
+      sec.items.forEach(function (it) {
+        it.sec = sec.title;
+        if (S.area !== 'Kitchen') {
+          var card = el('div', 'item row');
+          var info = el('div', 'info');
+          info.appendChild(el('div', 'name', it.name));
+          info.appendChild(el('div', 'ref', it.ref1));
+          if (it.hint) info.appendChild(el('div', 'hint', it.hint));
+          card.appendChild(info);
+          var ctl = el('div', 'ctl');
+          ctl.appendChild(numInput(it, it.fields[0], d.locked, false));
+          ctl.appendChild(el('span', 'unit', it.unit));
+          card.appendChild(ctl);
+          host.appendChild(card);
+          return;
+        }
+        var c = el('div', 'item');
+        var top = el('div');
+        top.appendChild(el('div', 'name', it.name));
+        top.appendChild(el('div', 'ref', it.ref1));
+        if (it.ref2) top.appendChild(el('div', 'ref', it.ref2));
+        c.appendChild(top);
+        if (it.showExp) {
+          var g = el('div', 'grid2');
+          [['expOld', 'Old expiry'], ['expNew', 'New expiry']].forEach(function (p) {
+            var lab = el('label', 'fl', p[1]);
+            var i = el('input', 'date'); i.type = 'date';
+            i.value = S.values[k(it.name, p[0])] || '';
+            i.disabled = d.locked || d.expLocked;
+            i.onchange = function () { setVal(it.name, p[0], i.value); };
+            lab.appendChild(i); g.appendChild(lab);
+          });
+          c.appendChild(g);
+        }
+        var fs = el('div', 'fields'), note = null;
+        it.fields.forEach(function (f) {
+          if (f.type === 'text') {
+            note = el('input', 'txt'); note.type = 'text'; note.placeholder = 'Note (optional)';
+            note.setAttribute('aria-label', it.name + ' note');
+            note.value = S.values[k(it.name, f.key)] || '';
+            note.disabled = d.locked;
+            note.oninput = function () { setVal(it.name, f.key, note.value); };
+            return;
+          }
+          var row = el('div', 'frow');
+          row.appendChild(el('span', 'flab', f.label));
+          if (f.type === 'sel') {
+            var s = el('select', 'sel');
+            s.setAttribute('aria-label', it.name + ' ' + f.label);
+            s.appendChild(new Option('Choose', ''));
+            d.reasons.forEach(function (r) { s.appendChild(new Option(r, r)); });
+            s.value = S.values[k(it.name, f.key)] || '';
+            s.disabled = d.locked;
+            s.onchange = function () { s.classList.remove('missing'); setVal(it.name, f.key, s.value); };
+            S.selects.push({ el: s, item: it.name, sec: sec.title, it: it });
+            row.appendChild(s);
+          } else {
+            row.appendChild(numInput(it, f, d.locked, false));
+          }
+          fs.appendChild(row);
+        });
+        c.appendChild(fs);
+        if (note) c.appendChild(note);
+        host.appendChild(c);
+      });
+    });
+    $('saveBar').classList.toggle('hidden', !!d.locked);
+    $('saveMsg').className = 'msg';
+    var off = $('countHead').offsetHeight + 8;
+    document.querySelectorAll('.item, .acc').forEach(function (x) { x.style.scrollMarginTop = off + 'px'; });
+    if (accordion) openSec(firstOpen || d.sections[0].title);
+    updateProgress();
+  }
+
+  function setVal(item, key, v) {
+    S.values[k(item, key)] = v;
+    var dirty = changes();
+    var map = {};
+    dirty.forEach(function (c) { map[k(c.item, c.key)] = c.value; });
+    store(draftKey(), dirty.length ? JSON.stringify(map) : null);
+    updateProgress();
+  }
+
+  function changes() {
+    var out = [];
+    for (var key in S.values) {
+      if (S.values[key] !== S.loaded[key]) {
+        var p = key.split('\u0001');
+        out.push({ item: p[0], key: p[1], value: S.values[key] });
+      }
+    }
+    return out;
+  }
+
+  function filled(it) {
+    return it.fields.filter(function (f) { return f.type === 'num'; })
+      .every(function (f) { return String(S.values[k(it.name, f.key)] || '').trim() !== ''; });
+  }
+
+  function counts() {
+    var total = 0, done = 0, bySec = {};
+    S.data.sections.forEach(function (sec) {
+      var st = { total: 0, done: 0 };
+      sec.items.forEach(function (it) {
+        total++; st.total++;
+        if (filled(it)) { done++; st.done++; }
+      });
+      bySec[sec.title] = st;
+    });
+    return { total: total, done: done, bySec: bySec };
+  }
+
+  function updateProgress() {
+    if (!S.data) return;
+    var c = counts();
+    $('progText').textContent = c.done + ' of ' + c.total;
+    $('fill').style.width = (c.total ? Math.round(c.done / c.total * 100) : 0) + '%';
+    for (var t in S.acc || {}) {
+      var st = c.bySec[t], a = S.acc[t];
+      var complete = st.done === st.total;
+      a.cnt.textContent = complete ? 'Done ✓' : st.done + ' of ' + st.total;
+      a.wrap.classList.toggle('done', complete);
+    }
+    var miss = c.total - c.done;
+    if ($('saveMsg').className.indexOf('err') < 0) {
+      $('saveMsg').textContent = miss > 0 ? miss + ' still empty. Type 0 when there is none.' : 'Everything counted. Ready to save.';
+    }
+  }
+
+  // Old pieces need a reason only when they really go: thrown away balls, old baked croissants,
+  // or old stock whose expiry is today or earlier. Old desserts still in date can stay.
+  function mustClear(it) {
+    if (it.kind === 'newonly' || it.kind === 'pair') return true;
+    if (it.kind === 'exp') {
+      var d = S.values[k(it.name, 'expOld')] || '';
+      return d !== '' && d <= S.data.today;
+    }
+    return false;
+  }
+
+  // Item total from the boxes, for the typo check
+  function itemTotal(it) {
+    var sum = 0;
+    it.fields.forEach(function (f) {
+      if (f.type !== 'num') return;
+      sum += Number(String(S.values[k(it.name, f.key)] || '0').replace(',', '.')) || 0;
+    });
+    return sum;
+  }
+  function looksOff(v, base) {
+    if (base === null || base === undefined || !(base > 0)) return false;
+    // Bar: warn when the count is double or more, or half or less, of the last shift
+    if (S.area === 'Bar') return v >= base * 2 || v <= base / 2;
+    if (v >= base * 8 && v - base >= 10) return true;
+    if (v > 0 && v <= base / 8 && base - v >= 10) return true;
+    return false;
+  }
+
+  function saveNow(answers) {
+    if (S.busy || !S.data) return;
+    var list = changes();
+    var err = function (t) { $('saveMsg').className = 'msg err'; $('saveMsg').textContent = t; };
+    var firstBad = null, missing = [];
+    S.inputs.forEach(function (x) {
+      var v = String(S.values[k(x.item, x.key)] || '').trim();
+      var bad = v === '' || !/^\d+([.,]\d+)?$/.test(v);
+      x.el.classList.toggle('missing', bad);
+      if (bad) { if (!firstBad) firstBad = x.el; if (missing.indexOf(x.sec) < 0) missing.push(x.sec); }
+    });
+    if (missing.length) {
+      err('Fill in every box, type 0 when there is none. Still empty in: ' + missing.map(secTitle).join(', ') + '.');
+      var fb = S.inputs.filter(function (x) { return x.el === firstBad; })[0];
+      reveal(fb.sec, firstBad);
+      return;
+    }
+    var noReason = [];
+    S.selects.forEach(function (x) {
+      var old = Number(String(S.values[k(x.item, 's2a')] || '0').replace(',', '.'));
+      var bad = old > 0 && !S.values[k(x.item, 'rsn')] && mustClear(x.it);
+      x.el.classList.toggle('missing', bad);
+      if (bad) noReason.push(x);
+    });
+    if (noReason.length) {
+      err('Choose a reason for: ' + noReason.map(function (x) { return x.item; }).join(', ') + '.');
+      reveal(noReason[0].sec, noReason[0].el);
+      return;
+    }
+    if (!list.length) { $('saveMsg').className = 'msg'; $('saveMsg').textContent = 'Already saved. Nothing changed.'; return; }
+
+    // Shift 2 higher than Shift 1: staff must say what happened (not for items delivered today)
+    var higher = [];
+    if (S.shift === '2' && S.area !== 'Weekly') {
+      S.data.sections.forEach(function (sec) {
+        sec.items.forEach(function (it) {
+          if (it.expected || it.s1Total === null || it.s1Total === undefined) return;
+          var touched = it.fields.some(function (f) { return f.type === 'num' && S.values[k(it.name, f.key)] !== S.loaded[k(it.name, f.key)]; });
+          if (!touched) return;
+          var v = itemTotal(it);
+          if (v > it.s1Total + 1e-9) higher.push({ it: it, s1: it.s1Total, s2: v });
+        });
+      });
+    }
+    if (higher.length && !answers) { askHigher(higher); return; }
+    answers = answers || {};
+
+    var odd = [], firstOdd = null;
+    S.data.sections.forEach(function (sec) {
+      sec.items.forEach(function (it) {
+        if (answers[it.name]) return;
+        var v = itemTotal(it);
+        if (looksOff(v, it.base)) {
+          odd.push(it.name + ': ' + v + ' (' + it.baseLabel + ' ' + it.base + ')');
+          S.inputs.forEach(function (x) { if (x.item === it.name) { x.el.classList.add('check'); if (!firstOdd) firstOdd = x; } });
+        }
+      });
+    });
+    if (odd.length && !confirm('Please double check these numbers:\n\n' + odd.slice(0, 6).join('\n') + (odd.length > 6 ? '\nand ' + (odd.length - 6) + ' more' : '') + '\n\nTap OK if they are right, or Cancel to fix them.')) {
+      reveal(firstOdd.sec, firstOdd.el);
+      return;
+    }
+    S.busy = true; $('saveBtn').disabled = true; $('saveBtn').textContent = 'Saving...';
+    $('saveMsg').className = 'msg'; $('saveMsg').textContent = '';
+    var ansList = Object.keys(answers).map(function (n) { return { item: n, answer: answers[n].answer, confirmed: answers[n].confirmed }; });
+    call('spSave', [S.token, S.area, S.shift, list, ansList], function (res) {
+      S.busy = false; $('saveBtn').disabled = false; $('saveBtn').textContent = 'Save counts';
+      if (!res.ok) { $('saveMsg').className = 'msg err'; $('saveMsg').textContent = res.msg; return; }
+      store(draftKey(), null);
+      for (var key in S.values) S.loaded[key] = S.values[key];
+      var where = S.area === 'Weekly' ? 'Weekly tab, with today as the count date.' : S.area + ' tab, Shift ' + S.shift + '.';
+      $('doneMsg').textContent = 'Saved to the ' + where + ' ' + res.counted + ' of ' + res.total + ' items are counted.';
+      show('doneScreen');
+    }, function () {
+      S.busy = false; $('saveBtn').disabled = false; $('saveBtn').textContent = 'Save counts';
+      $('saveMsg').className = 'msg err';
+      $('saveMsg').textContent = 'Not saved. Check your signal and tap Save again. Your numbers are kept on this phone.';
+    });
+  }
+
+  // Asks, for each item, whether Shift 1 counted wrong or extra stock came in
+  function askHigher(list) {
+    var box = $('higherBox'), L = $('higherList'), go = $('higherGo');
+    L.innerHTML = '';
+    var picked = {}, confirmed = {};
+    var MISTAKE = 'Shift 1 count mistake';
+    var refresh = function () {
+      go.disabled = list.some(function (x) {
+        var a = picked[x.it.name];
+        return !a || (a === MISTAKE && !confirmed[x.it.name]);
+      });
+    };
+    list.forEach(function (x) {
+      var row = el('div', 'h-item');
+      row.appendChild(el('div', 'name', x.it.name));
+      row.appendChild(el('div', 'ref', 'Shift 1: ' + x.s1 + '   Shift 2 now: ' + x.s2));
+      var btns = el('div', 'h-btns');
+      var conf = el('label', 'h-conf hidden');
+      var cb = el('input'); cb.type = 'checkbox';
+      cb.onchange = function () { confirmed[x.it.name] = cb.checked; refresh(); };
+      conf.appendChild(cb);
+      conf.appendChild(el('span', '', 'I counted again. ' + x.s2 + ' is correct and I take responsibility for this count.'));
+      [MISTAKE, 'Extra stock received'].forEach(function (a) {
+        var b = el('button', 'h-opt', a); b.type = 'button';
+        b.onclick = function () {
+          picked[x.it.name] = a;
+          btns.querySelectorAll('.h-opt').forEach(function (o) { o.classList.toggle('on', o === b); });
+          conf.classList.toggle('hidden', a !== MISTAKE);
+          if (a !== MISTAKE) { cb.checked = false; confirmed[x.it.name] = false; }
+          refresh();
+        };
+        btns.appendChild(b);
+      });
+      row.appendChild(btns);
+      row.appendChild(conf);
+      L.appendChild(row);
+    });
+    refresh();
+    go.onclick = function () {
+      box.classList.add('hidden');
+      var out = {};
+      list.forEach(function (x) { out[x.it.name] = { answer: picked[x.it.name], confirmed: !!confirmed[x.it.name] }; });
+      saveNow(out);
+    };
+    $('higherBack').onclick = function () { box.classList.add('hidden'); };
+    box.classList.remove('hidden');
+  }
+
+  /* Wire up */
+  $('lockBtn').onclick = function () { signOut(); };
+  $('s1Btn').onclick = function () { S.shift = '1'; drawHome(); };
+  $('s2Btn').onclick = function () { S.shift = '2'; drawHome(); };
+  $('backBtn').onclick = function () { goHome(); };
+  $('saveBtn').onclick = function () { saveNow(); };
+  $('doneHome').onclick = function () { goHome(); };
+  $('doneFix').onclick = function () { openArea(S.area); };
+
+  var h = Number(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dubai', hour: 'numeric', hour12: false }));
+  if (h >= 17 || h < 4) S.shift = '2';
+
+  drawDots(); drawPad();
+  var saved = read('tb_token');
+  if (saved) { S.token = saved; goHome(); } else { show('pinScreen'); }
+})();
+</script>
+</body>
+</html>
