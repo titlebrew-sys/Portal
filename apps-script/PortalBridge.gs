@@ -180,6 +180,15 @@ function portalBridgeHistory_() {
   var labels = h.getRange(2, 1, 1, width).getValues()[0];
   var body = h.getRange(3, 1, h.getLastRow() - 2, width).getValues();
   var out = [];
+  // Which tab each item is on (History column A may hold a section name like "Croissants")
+  var areaOf = {};
+  ['Bar', 'Kitchen', 'Weekly'].forEach(function (a) {
+    var sh = ss.getSheetByName(a);
+    if (!sh || sh.getLastRow() < PORTAL_BRIDGE_FIRST_ROW) return;
+    sh.getRange(PORTAL_BRIDGE_FIRST_ROW, 1, sh.getLastRow() - PORTAL_BRIDGE_FIRST_ROW + 1, 2).getValues().forEach(function (r) {
+      if (portalBridgeIsItem_(r)) areaOf[String(r[1])] = a;
+    });
+  });
   var wanted = [1, 2].map(function (n) {
     var d = new Date(Date.parse(todayKey + 'T12:00:00Z') - n * 864e5);
     return d.toISOString().slice(0, 10);
@@ -197,7 +206,8 @@ function portalBridgeHistory_() {
       groups[k].rows.push(row);
     };
     body.forEach(function (r) {
-      var area = String(r[0]), item = String(r[1]);
+      var item = String(r[1]);
+      var area = areaOf[item] || String(r[0]);
       if (!item || ['Bar', 'Kitchen', 'Weekly'].indexOf(area) < 0) return;
       var s1 = r[c], s2 = r[c + 1], exp = String(r[c + 2] || ''), cleared = String(r[c + 3] || '');
       if (area === 'Weekly') { var w = portalBridgeNum_(s1); if (w !== null) push('Weekly', 'W', { item: item, qty: w }); return; }
