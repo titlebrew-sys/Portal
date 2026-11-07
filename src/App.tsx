@@ -6,7 +6,7 @@ import { Icon, Seg } from './components';
 import { demoStore, resetDemo } from './data/demo';
 import { liveAuth, liveStore, supabaseConfigured } from './data/supabase';
 import { businessDate } from './lib/time';
-import { plan } from './lib/ordering';
+import { dueToday } from './lib/derive';
 import { Login } from './views/Login';
 import { Today } from './views/Today';
 import { Count } from './views/Count';
@@ -138,7 +138,7 @@ export default function App() {
 
   const vis = VIEWS.filter((v) => v.id !== 'more' && (me.role === 'owner' || v.staff));
   const cur: ViewId = (hash === 'more' ? 'more' : vis.find((v) => v.id === hash)?.id ?? 'home') as ViewId;
-  const due = plan(data, today).filter((p) => p.lines.some((l) => l.qty > 0) && !data.orders.some((o) => o.businessDate === today && o.supplierId === p.supplier.id)).length;
+  const due = dueToday(data, today).length;
 
   const ctx: Ctx = {
     data, me, store, today, refresh, toast, run,

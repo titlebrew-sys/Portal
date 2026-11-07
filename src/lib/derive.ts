@@ -1,6 +1,6 @@
 import type { AppData, Area, CountItem, CountRow, Shift } from '../types';
 import { addDays } from './time';
-import { plan, type SupplierPlan } from './ordering';
+import { noOrdersOn, plan, type SupplierPlan } from './ordering';
 
 export function countOf(data: AppData, date: string, shift: Shift, itemId: string): CountRow | undefined {
   return data.counts.find((c) => c.businessDate === date && c.shift === shift && c.itemId === itemId);
@@ -43,6 +43,7 @@ export function dropped(data: AppData, today: string) {
 
 /** Suppliers with something suggested today that have not been sent yet. */
 export function dueToday(data: AppData, today: string): SupplierPlan[] {
+  if (noOrdersOn(today)) return [];
   return plan(data, today).filter(
     (p) => p.lines.some((l) => l.qty > 0) && !data.orders.some((o) => o.businessDate === today && o.supplierId === p.supplier.id),
   );

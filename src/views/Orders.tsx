@@ -3,7 +3,7 @@ import { useApp } from '../ctx';
 import { Head, MobileWho, aed, parseNum } from '../components';
 import type { Order, OrderLine } from '../types';
 import { LpoDoc } from './Lpo';
-import { fmtNum, plan, type SupplierPlan } from '../lib/ordering';
+import { fmtNum, noOrdersOn, plan, type SupplierPlan } from '../lib/ordering';
 import { channelOf, emailSubject, lpoTotals, mailtoLink, orderMessage, whatsappLink } from '../lib/messages';
 import { dubaiClock, fmtLongDate, fmtShortDate } from '../lib/time';
 
@@ -31,8 +31,9 @@ export function Orders() {
   const plans = plan(data, today);
   const sentToday = data.orders.filter((o) => o.businessDate === today);
   const isSent = (p: SupplierPlan) => sentToday.some((o) => o.supplierId === p.supplier.id);
-  const due = plans.filter((p) => !isSent(p) && p.lines.some((l) => l.qty > 0));
-  const quiet = plans.filter((p) => !isSent(p) && !p.lines.some((l) => l.qty > 0));
+  const closed = noOrdersOn(today);
+  const due = closed ? [] : plans.filter((p) => !isSent(p) && p.lines.some((l) => l.qty > 0));
+  const quiet = closed ? [] : plans.filter((p) => !isSent(p) && !p.lines.some((l) => l.qty > 0));
 
   if (lpoView) {
     const o = data.orders.find((x) => x.id === lpoView);
@@ -47,6 +48,12 @@ export function Orders() {
         title="Orders to send"
         sub="Suggestions come from today's Shift 1 count and your rules. Change any number, then copy the message or create the email."
       />
+      {closed && (
+        <div className="empty">
+          <h2>No orders on Saturday</h2>
+          <p className="sub" style={{ margin: 0 }}>Nothing is delivered on Sunday. Friday's order arrives on Saturday; Sunday's order arrives on Monday.</p>
+        </div>
+      )}
       {due.map((p) => <SupplierCard key={p.supplier.id} p={p} onLpo={setLpoView} />)}
       {sentToday.length > 0 && (
         <div className="panel">
@@ -65,7 +72,7 @@ export function Orders() {
           </div>
         </div>
       )}
-      <div className="panel">
+      {!closed && <div className="panel">
         <div className="panel-h"><h2>Nothing to order today</h2><span className="pill p-good">{quiet.length} suppliers</span></div>
         <div className="quiet">
           {quiet.map((p) => {
@@ -73,7 +80,7 @@ export function Orders() {
             return <span key={p.supplier.id} className={'pill ' + (missing ? 'p-warn' : 'p-mute')} title={missing ? `${missing} items not counted` : undefined}>{p.supplier.name}{missing ? ` · ${missing} not counted` : ''}</span>;
           })}
         </div>
-      </div>
+      </div>}
     </>
   );
 }

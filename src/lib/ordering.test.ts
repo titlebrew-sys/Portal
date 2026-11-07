@@ -84,3 +84,22 @@ describe('Dubai clock', () => {
     expect(isShift1Locked('2026-11-05', new Date('2026-11-05T22:00:00Z'))).toBe(true); // 2am next night
   });
 });
+
+describe('Title Brew order days', () => {
+  const data = demoData(DAY);
+  const lsb = data.suppliers.find((s) => s.name === "L's Boutique Bakery")!;
+  const tealand = data.suppliers.find((s) => s.name === 'Tealand')!;
+  it('no supplier delivers on Sunday', () => {
+    expect(deliveryDate(lsb, '2026-11-07')).toBe('2026-11-09'); // Saturday -> Monday, even with no Sunday rule
+    expect(deliveryDate(tealand, '2026-11-06')).toBe('2026-11-09'); // Friday + 2 days lands on Sunday -> Monday
+  });
+  it('Friday orders arrive Saturday, Sunday orders arrive Monday', () => {
+    expect(deliveryDate(lsb, '2026-11-06')).toBe('2026-11-07');
+    expect(deliveryDate(lsb, '2026-11-08')).toBe('2026-11-09');
+  });
+  it('nothing is ordered on Saturday', async () => {
+    const { dueToday } = await import('./derive');
+    expect(dueToday(demoData('2026-11-07'), '2026-11-07')).toEqual([]);
+    expect(dueToday(demoData('2026-11-08'), '2026-11-08').length).toBeGreaterThan(0);
+  });
+});

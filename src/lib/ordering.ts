@@ -50,9 +50,15 @@ export function parseCountFrom(expr: string): { id: string; w: number }[] {
 }
 
 /** First delivery date for an order placed on orderDate. */
+/** Title Brew: no supplier delivers on Sunday. */
+export const NO_DELIVERY_WEEKDAY = 0;
+/** Title Brew: nothing is ordered on Saturday. Friday orders arrive Saturday, Sunday orders arrive Monday. */
+export const NO_ORDER_WEEKDAY = 6;
+export const noOrdersOn = (date: string) => weekdayOf(date) === NO_ORDER_WEEKDAY;
+
 export function deliveryDate(s: Supplier, orderDate: string): string {
   let d = addDays(orderDate, Math.max(1, s.leadDays));
-  for (let i = 0; i < 7 && s.noDeliveryDays.includes(weekdayOf(d)); i++) d = addDays(d, 1);
+  for (let i = 0; i < 7 && (weekdayOf(d) === NO_DELIVERY_WEEKDAY || s.noDeliveryDays.includes(weekdayOf(d))); i++) d = addDays(d, 1);
   return d;
 }
 
