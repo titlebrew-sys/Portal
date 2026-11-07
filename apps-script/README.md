@@ -4,6 +4,7 @@ The live versions of these files are in the Apps Script project of the Title Bre
 (Extensions > Apps Script). That project is the master copy.
 
 - `PortalBridge.gs`: same as the live version.
+- `Orders.gs`: new (Orders screen for staff allowed to send orders). Its screen goes into the live Page.html.
 - `Deliveries.gs` and `Page.html`: OLDER than the live versions. They were changed further in
   the Claude chat (expiry handling after deliveries, manager PIN, Done screens, search box).
   Do not paste these over the live files.

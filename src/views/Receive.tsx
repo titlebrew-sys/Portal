@@ -42,7 +42,7 @@ export function Receive() {
   );
 }
 
-function ReceiveCard({ o }: { o: Order }) {
+export function ReceiveCard({ o }: { o: Order }) {
   const { data, me, store, run } = useApp();
   const s = data.suppliers.find((x) => x.id === o.supplierId);
   const [got, setGot] = useState<Record<string, string>>(Object.fromEntries(o.lines.map((l) => [l.ruleId, String(l.qty)])));

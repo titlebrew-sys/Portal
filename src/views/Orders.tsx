@@ -29,7 +29,7 @@ export function Orders() {
   const { data, today } = useApp();
   const [lpoView, setLpoView] = useState<string | null>(null);
   const plans = plan(data, today);
-  const sentToday = data.orders.filter((o) => o.businessDate === today);
+  const sentToday = data.orders.filter((o) => o.businessDate === today && !(o.receivedBy ?? '').includes('(not ordered)'));
   const isSent = (p: SupplierPlan) => sentToday.some((o) => o.supplierId === p.supplier.id);
   const closed = noOrdersOn(today);
   const due = closed ? [] : plans.filter((p) => !isSent(p) && p.lines.some((l) => l.qty > 0));

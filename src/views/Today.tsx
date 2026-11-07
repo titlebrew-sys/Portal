@@ -15,7 +15,7 @@ export function Today() {
   const { data, me, today, store } = useApp();
   const owner = me.role === 'owner';
   const due = dueToday(data, today);
-  const sent = data.orders.filter((o) => o.businessDate === today);
+  const sent = data.orders.filter((o) => o.businessDate === today && !(o.receivedBy ?? '').includes('(not ordered)'));
   const exp = expiring(data, today);
   const zero = zeroStock(data, today);
   const drop = dropped(data, today);

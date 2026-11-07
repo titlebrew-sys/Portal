@@ -67,7 +67,7 @@ export function demoData(today: string): AppData {
     rules: seedRules,
     counts,
     sessions,
-    orders: [],
+    orders: demoDeliveries(today),
     waste,
     sales: [],
     salesPeriod: null,
@@ -90,4 +90,23 @@ export function demoBook(): StockBook {
     syncRuns: [{ id: 'demo', kind: 'loyverse', startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), receipts: 0, ok: true,
       message: 'Demo: made-up receipts, Loyverse is not connected yet', latestReceiptAt: null }],
   };
+}
+
+/** Demo deliveries: one confirmed short, one nobody confirmed, one bought from a shop. */
+function demoDeliveries(today: string): AppData['orders'] {
+  const y = addDays(today, -1);
+  const morning = (d: string, hhmm: string) => new Date(`${d}T${hhmm}:00+04:00`).toISOString();
+  const rule = (id: string) => seedRules.find((r) => r.id === id)!;
+  const line = (id: string, qty: number) => ({ ruleId: id, name: rule(id).orderItem, qty, unit: rule(id).orderUnit, price: rule(id).price });
+  return [
+    { id: 'demo-bakery', businessDate: y, supplierId: 'sup-the-bakery', lines: [line('rule-the-bakery-avocado-chicken-sandwich', 2), line('rule-the-bakery-turkey-cheese-croissant', 2)],
+      message: 'From the Google Sheet', lpoNumber: null, sentBy: 'Google Sheet', sentAt: morning(y, '17:00'), receivedAt: morning(today, '07:42'), receivedBy: 'Arsen (confirmed)',
+      received: [{ ruleId: 'rule-the-bakery-avocado-chicken-sandwich', qty: 2 }, { ruleId: 'rule-the-bakery-turkey-cheese-croissant', qty: 1 }] },
+    { id: 'demo-almarai', businessDate: y, supplierId: 'sup-almarai', lines: [line('rule-almarai-full-fat-milk-2l', 6)], message: 'From the Google Sheet', lpoNumber: null,
+      sentBy: 'Google Sheet', sentAt: morning(y, '17:00'), receivedAt: morning(today, '08:00'), receivedBy: 'Google Sheet (taken as delivered next morning)',
+      received: [{ ruleId: 'rule-almarai-full-fat-milk-2l', qty: 6 }] },
+    { id: 'demo-shop', businessDate: today, supplierId: 'sup-shop', lines: [{ ruleId: '', name: 'Full fat milk', qty: 6, unit: '', price: null }],
+      message: 'Bought from a shop · AED 48 · Ran out', lpoNumber: null, sentBy: 'Rhobel', sentAt: morning(today, '11:20'), receivedAt: morning(today, '11:20'),
+      receivedBy: 'Rhobel (not ordered)', received: [{ ruleId: '', itemId: 'bar-full-fat-milk', qty: 6 }] },
+  ];
 }

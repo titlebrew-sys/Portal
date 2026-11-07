@@ -11,7 +11,7 @@ import { Login } from './views/Login';
 import { Today } from './views/Today';
 import { Count } from './views/Count';
 import { Orders } from './views/Orders';
-import { Receive } from './views/Receive';
+import { Deliveries } from './views/Deliveries';
 import { Waste } from './views/Waste';
 import { Sales } from './views/Sales';
 import { Rules } from './views/Rules';
@@ -25,7 +25,7 @@ const VIEWS = [
   { id: 'home', label: 'Today', icon: 'home', staff: true },
   { id: 'count', label: 'Count', icon: 'count', staff: true },
   { id: 'orders', label: 'Orders', icon: 'orders', staff: true },
-  { id: 'receive', label: 'Receive', icon: 'receive', staff: true },
+  { id: 'receive', label: 'Deliveries', icon: 'receive', staff: true },
   { id: 'waste', label: 'Waste', icon: 'waste', staff: true },
   { id: 'stock', label: 'Stock', icon: 'stock', staff: true },
   { id: 'differences', label: 'Differences', icon: 'diff', staff: true },
@@ -145,7 +145,7 @@ export default function App() {
     setDemoRole: store.mode === 'demo' ? (r) => setMe({ name: r === 'owner' ? 'Rimma' : 'Staff', role: r }) : undefined,
   };
 
-  const View = { home: Today, count: Count, orders: Orders, receive: Receive, waste: Waste, sales: Sales, rules: Rules, stock: Stock, differences: Differences, recipes: Recipes, how: HowItWorks, more: () => <More views={vis} /> }[cur];
+  const View = { home: Today, count: Count, orders: Orders, receive: Deliveries, waste: Waste, sales: Sales, rules: Rules, stock: Stock, differences: Differences, recipes: Recipes, how: HowItWorks, more: () => <More views={vis} /> }[cur];
   const tabs = [...vis.slice(0, 4), VIEWS.find((v) => v.id === 'more')!];
 
   return (

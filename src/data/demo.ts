@@ -9,7 +9,7 @@ import { demoLive, demoReceipts, DEMO_LY_ITEMS } from './demoLoyverse';
 import { salesFromReceipts } from '../lib/salesReport';
 import { businessDate } from '../lib/time';
 
-const KEY = 'titlebrew-demo-v2';
+const KEY = 'titlebrew-demo-v3';
 
 function read(): AppData | null {
   try {
