@@ -14,9 +14,16 @@ const TOKEN = Deno.env.get('LOYVERSE_TOKEN') ?? '';
 const LOCATION = 'business-bay';
 const DAY = 864e5;
 const CALL_TIMEOUT_MS = 20_000;
-/** Opening hours in Dubai, for the "no sale for a while" warning. */
-const OPEN_HOUR = 7;
-const CLOSE_HOUR = 23;
+/**
+ * Opening hours in Dubai, for the "no sale for a while" warning.
+ * Weekdays 7am to 9pm, weekends (Saturday and Sunday) 10am to 8pm.
+ */
+const HOURS = { weekday: { open: 7, close: 21 }, weekend: { open: 10, close: 20 } };
+function hoursOn(d: Date) {
+  const dubai = new Date(d.getTime() + 4 * 3600_000);
+  const day = dubai.getUTCDay(); // 0 Sunday ... 6 Saturday
+  return day === 0 || day === 6 ? HOURS.weekend : HOURS.weekday;
+}
 const QUIET_MINUTES = 90;
 const LATE_MINUTES = 15;
 
@@ -146,13 +153,15 @@ export async function readLoyverse(now = new Date()) {
   const todays = receipts.filter((r) => r.businessDate === today && !r.cancelled);
   const last = todays.find((r) => r.type === 'SALE');
   const hour = dubaiHour(now);
-  const open = hour >= OPEN_HOUR && hour < CLOSE_HOUR;
+  const hrs = hoursOn(now);
+  const open = hour >= hrs.open && hour < hrs.close;
   if (last) {
     const ago = minutes(now.getTime() - Date.parse(last.at));
     const text = `Last sale ${ago <= 1 ? 'just now' : ago < 120 ? `${ago} minutes ago` : `at ${dubaiTime(last.at)}`} (receipt ${last.number}).`;
     checks.push({ level: open && ago > QUIET_MINUTES ? 'warn' : 'ok', text: open && ago > QUIET_MINUTES ? `${text} No sale for ${Math.round(ago / 6) / 10} hours: check the till is online.` : text });
   } else {
-    checks.push({ level: open && hour >= OPEN_HOUR + 2 ? 'warn' : 'ok', text: open && hour >= OPEN_HOUR + 2 ? 'No sales in Loyverse yet today: check the till is online.' : 'No sales yet today.' });
+    const late = open && hour >= hrs.open + 2;
+    checks.push({ level: late ? 'warn' : 'ok', text: late ? 'No sales in Loyverse yet today: check the till is online.' : open ? 'No sales yet today.' : `No sales yet today. The shop opens at ${hrs.open}am.` });
   }
 
   const lags = todays.map((r) => Date.parse(r.createdAt) - Date.parse(r.at)).filter((x) => Number.isFinite(x));
