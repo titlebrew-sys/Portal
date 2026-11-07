@@ -1,5 +1,5 @@
 /**
- * Title Brew staff app: Orders screen (server side). Only for staff allowed to send orders.
+ * Title Brew staff app: "Place Order for tomorrow" screen (server side). Only for staff allowed to send orders.
  * Add this as a NEW script file called "Orders". It reuses TZ (Code) and spWho (StaffPage).
  *
  * Who can see it: on the Staff tab, column C "Manager" = Y, or column D "Can send orders" = Y.
@@ -64,12 +64,27 @@ function spOrders(token) {
       if (qty > 0) cur.items.push({ item: a, qty: qty });
     }
   }
+  var sent = orSentToday_(today);
+  out.forEach(function (s) { s.sent = sent[s.name] || ''; });
   return {
     ok: true, allowed: true, saturday: false,
     delivery: String(to.getRange('B3').getDisplayValue() || ''),
     suppliers: out.filter(function (s) { return s.items.length > 0; }),
     nothing: out.filter(function (s) { return !s.items.length; }).map(function (s) { return s.name; }),
   };
+}
+
+/** Today's "Opened WhatsApp" taps from the Order Log: supplier name -> "Rhobel at 4:10pm". */
+function orSentToday_(today) {
+  var log = SpreadsheetApp.getActive().getSheetByName(OR_LOG);
+  var out = {};
+  if (!log || log.getLastRow() < 2) return out;
+  log.getRange(2, 1, log.getLastRow() - 1, 4).getValues().forEach(function (r) {
+    if (!r[0] || Object.prototype.toString.call(r[0]) !== '[object Date]') return;
+    if (Utilities.formatDate(r[0], TZ, 'yyyy-MM-dd') !== today || r[3] !== 'Opened WhatsApp') return;
+    out[String(r[2])] = r[1] + ' at ' + Utilities.formatDate(r[0], TZ, 'h:mma').toLowerCase();
+  });
+  return out;
 }
 
 /** Writes who opened WhatsApp (or copied the message) for which supplier, and when. */

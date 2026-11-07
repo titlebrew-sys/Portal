@@ -34,7 +34,7 @@
 
   /* Home */
   .top { padding: 40px 20px 8px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-  .top .date { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .top .hdate { font-size: 13px; color: var(--muted); font-weight: 500; }
   .top h1 { margin: 4px 0 0; font-size: 26px; }
   .pill-btn { height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid #D8CFC2; background: var(--card); font-size: 14px; font-weight: 500; color: var(--ink); }
   .block { padding: 16px 20px 0; }
@@ -169,6 +169,32 @@
   .dv-link { background: none; border: none; color: var(--s1); font-weight: 700; font-size: 14px; padding: 6px 0; text-align: left; }
   .dv-form { display: flex; flex-direction: column; gap: 8px; }
   .dv-go { margin-top: 10px; height: 44px; border-radius: 22px; border: none; background: var(--del); color: #FFFFFF; font-size: 15px; font-weight: 700; padding: 0 18px; }
+
+  /* Done status, manager, search */
+  .area.st-done { border: 1px solid #9CC5B0; }
+  .area.st-done span { color: var(--s2); font-weight: 600; }
+  .area.st-late { border: 2px solid #B42318; background: #FEF3F2; }
+  .area.st-late span { color: #9B1C1C; font-weight: 600; }
+  .area.st-part span { color: #B54708; font-weight: 600; }
+  .mgr { margin: 8px 20px 0; padding: 8px 12px; border-radius: 10px; background: var(--s1bg); color: var(--s1); font-size: 13px; font-weight: 600; }
+  .search { width: 100%; height: 46px; border: 1.5px solid var(--field); border-radius: 23px; padding: 0 16px; font: 500 16px 'DM Sans', system-ui, sans-serif; color: var(--ink); background: var(--card); }
+  .item.gone { display: none; }
+
+  /* Place Order for tomorrow */
+  :root { --or: #25664A; --orbg: #E4F1EA; }
+  .area.or { border: 2px solid var(--or); background: var(--orbg); }
+  .area.or span { color: var(--or); font-weight: 600; }
+  .or-sup { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .or-sup.sent { border-color: #9CC5B0; }
+  .or-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+  .or-head b { flex: 1; font-size: 17px; }
+  .or-head span { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .or-sup.sent .or-head span { color: var(--s2); }
+  .or-msg { margin: 0 14px; padding: 10px 12px; border-radius: 12px; background: #FBF9F5; border: 1px solid var(--line); font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+  .or-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 14px; }
+  .or-wa { height: 46px; border-radius: 23px; border: none; background: var(--or); color: #FFFFFF; font-size: 15px; font-weight: 700; }
+  .or-copy { height: 46px; border-radius: 23px; border: 1.5px solid var(--field); background: var(--card); color: var(--ink); font-size: 15px; font-weight: 700; }
+  .or-note { padding: 0 14px 12px; font-size: 13px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -187,14 +213,19 @@
   <section id="homeScreen" class="hidden">
     <div class="top">
       <div>
-        <div class="date" id="homeDate"></div>
+        <div class="hdate" id="homeDate"></div>
         <h1 id="hello"></h1>
       </div>
       <button class="pill-btn" id="lockBtn" type="button">Lock</button>
     </div>
+    <div class="mgr hidden" id="mgrNote">Manager: you can enter and correct counts at any time.</div>
     <div class="block">
       <h2>Deliveries</h2>
       <div class="areas" style="padding-bottom:0"><button class="area dv" id="dvTile" type="button"><span class="t"><b>Deliveries today</b><span id="dvTileSub">Loading...</span></span></button></div>
+    </div>
+    <div class="block hidden" id="orBlock">
+      <h2>Orders</h2>
+      <div class="areas" style="padding-bottom:0"><button class="area or" id="orTile" type="button"><span class="t"><b>Place Order for tomorrow</b><span id="orTileSub">Loading...</span></span></button></div>
     </div>
     <div class="block">
       <h2>Choose shift</h2>
@@ -227,14 +258,6 @@
     </div>
   </section>
 
-  <section id="doneScreen" class="done hidden">
-    <div class="tick"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></div>
-    <h1>Saved</h1>
-    <p id="doneMsg"></p>
-    <button class="primary" id="doneHome" type="button">Back to start</button>
-    <button class="pill-btn" id="doneFix" type="button">Fix a number</button>
-  </section>
-
   <section id="deliveriesScreen" class="hidden" style="display:flex; flex-direction:column; flex:1">
     <div class="head">
       <div class="head-row">
@@ -246,6 +269,26 @@
       </div>
     </div>
     <div class="list" id="dvList"></div>
+  </section>
+
+  <section id="ordersScreen" class="hidden" style="display:flex; flex-direction:column; flex:1">
+    <div class="head">
+      <div class="head-row">
+        <button class="back" id="orBack" type="button" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E1A16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+        </button>
+        <h1>Place Order for tomorrow</h1>
+      </div>
+    </div>
+    <div class="list" id="orList"></div>
+  </section>
+
+  <section id="doneScreen" class="done hidden">
+    <div class="tick"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></div>
+    <h1>Saved</h1>
+    <p id="doneMsg"></p>
+    <button class="primary" id="doneHome" type="button">Back to start</button>
+    <button class="pill-btn" id="doneFix" type="button">Fix a number</button>
   </section>
 
 </div>
@@ -278,7 +321,7 @@
 (function () {
   var S = { inputs: [], selects: [], acc: {}, open: '', token: '', name: '', pin: '', shift: '1', area: 'Bar', data: null, values: {}, loaded: {}, home: null, busy: false };
   var $ = function (id) { return document.getElementById(id); };
-  var screens = ['pinScreen', 'homeScreen', 'countScreen', 'doneScreen', 'deliveriesScreen'];
+  var screens = ['pinScreen', 'homeScreen', 'countScreen', 'doneScreen', 'deliveriesScreen', 'ordersScreen'];
 
   function store(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
   function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -344,6 +387,7 @@
       drawHome();
     }, function () { $('hello').textContent = 'No connection'; });
     loadDeliveries(drawDvTile);
+    loadOrders(drawOrTile);
   }
   function drawHome() {
     var h = S.home; if (!h) return;
@@ -351,12 +395,25 @@
     $('s2Btn').className = 'shift' + (S.shift === '2' ? ' on2' : '');
     $('s1Sub').textContent = h.locks.night ? 'Closed until 4am' : (h.locks.s1 ? 'Locked after 5pm, view only' : 'Before 3:30pm, used for orders');
     $('s2Sub').textContent = h.locks.night ? 'Closed until 4am' : 'Closing count at 9pm';
+    $('mgrNote').classList.toggle('hidden', !h.manager);
+    if (h.manager) { $('s1Sub').textContent = 'Before 3:30pm, used for orders'; $('s2Sub').textContent = 'Closing count at 9pm'; }
     var a = $('areas'); a.innerHTML = '';
+    // Shift 1 is due by 3:30pm, Shift 2 by 9:30pm
+    var due = S.shift === '1' ? 15 * 60 + 30 : 21 * 60 + 30;
     ['Bar', 'Kitchen', 'Weekly'].forEach(function (name) {
       var b = el('button', 'area'); b.type = 'button';
       var t = el('span', 't');
       t.appendChild(el('b', '', name));
-      var st = name === 'Weekly' ? h.status.Weekly : (h.status[name + S.shift] || 'Not started');
+      var st, cls = '';
+      if (name === 'Weekly') st = h.status.Weekly;
+      else {
+        var dn = (h.done || {})[name + S.shift];
+        if (dn && dn.total && dn.counted >= dn.total) { st = 'Done \u2713 ' + dn.by + ', ' + dn.at; cls = ' st-done'; }
+        else if (dn) { st = dn.counted + ' of ' + dn.total + ' counted. ' + dn.by + ', ' + dn.at; cls = h.nowMin >= due ? ' st-late' : ' st-part'; }
+        else if (h.nowMin >= due) { st = 'Not done'; cls = ' st-late'; }
+        else st = 'Not started';
+      }
+      b.className = 'area' + cls;
       t.appendChild(el('span', '', st));
       b.appendChild(t);
       b.insertAdjacentHTML('beforeend', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B625A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>');
@@ -415,7 +472,7 @@
     S.inputs.push({ el: i, item: item.name, key: f.key, sec: item.sec });
     if (!item.step) return i;
     var w = el('div', 'stepper');
-    var minus = el('button', 'stp', '−'); minus.type = 'button'; minus.disabled = locked;
+    var minus = el('button', 'stp', '\u2212'); minus.type = 'button'; minus.disabled = locked;
     minus.setAttribute('aria-label', 'One less ' + item.name);
     var plus = el('button', 'stp', '+'); plus.type = 'button'; plus.disabled = locked;
     plus.setAttribute('aria-label', 'One more ' + item.name);
@@ -442,7 +499,14 @@
       S.acc[t].head.setAttribute('aria-expanded', on ? 'true' : 'false');
     }
   }
+  function applySearch(q) {
+    q = String(q || '').trim().toLowerCase();
+    document.querySelectorAll('#list .item.row').forEach(function (c) {
+      c.classList.toggle('gone', q !== '' && c.getAttribute('data-name').indexOf(q) < 0);
+    });
+  }
   function reveal(sec, node) {
+    if (S.search && S.search.value) { S.search.value = ''; applySearch(''); }
     if (S.acc && S.acc[sec]) openSec(sec);
     setTimeout(function () { node.scrollIntoView({ block: 'center' }); if (node.focus) node.focus(); }, 30);
   }
@@ -459,6 +523,16 @@
       go.onclick = function () { openDeliveries(); };
       rem.appendChild(el('br')); rem.appendChild(go);
       L.appendChild(rem);
+    }
+    // Search box for the long lists (Bar and Weekly)
+    S.search = null;
+    var nItems = d.sections.reduce(function (a, x) { return a + x.items.length; }, 0);
+    if (S.area !== 'Kitchen' && nItems > 8) {
+      var q = el('input', 'search'); q.type = 'search'; q.placeholder = 'Search, for example oat or syrup';
+      q.setAttribute('aria-label', 'Search items');
+      q.oninput = function () { applySearch(q.value); };
+      S.search = q;
+      L.appendChild(q);
     }
     if (S.area === 'Kitchen' && !d.locked) {
       L.appendChild(el('div', 'note-box', (d.expLocked ? 'Expiry dates lock at 5pm with Shift 1.' : 'Expiry dates are filled in for you. Only change them if the package says otherwise.') + ' Count sections in any order.' +
@@ -494,6 +568,7 @@
         it.sec = sec.title;
         if (S.area !== 'Kitchen') {
           var card = el('div', 'item row');
+          card.setAttribute('data-name', it.name.toLowerCase());
           var info = el('div', 'info');
           info.appendChild(el('div', 'name', it.name));
           info.appendChild(el('div', 'ref', it.ref1));
@@ -610,7 +685,7 @@
     for (var t in S.acc || {}) {
       var st = c.bySec[t], a = S.acc[t];
       var complete = st.done === st.total;
-      a.cnt.textContent = complete ? 'Done ✓' : st.done + ' of ' + st.total;
+      a.cnt.textContent = complete ? 'Done \u2713' : st.done + ' of ' + st.total;
       a.wrap.classList.toggle('done', complete);
     }
     var miss = c.total - c.done;
@@ -949,7 +1024,72 @@
     $('arrivalBox').classList.remove('hidden');
   }
 
+  /* Place Order for tomorrow (only for managers and staff with "Can send orders") */
+  function loadOrders(then) {
+    call('spOrders', [S.token], function (d) { S.or = d; if (then) then(); }, function () { S.or = null; if (then) then(); });
+  }
+  function drawOrTile() {
+    var d = S.or;
+    $('orBlock').classList.toggle('hidden', !(d && d.allowed));
+    if (!d || !d.allowed) return;
+    var sub = $('orTileSub');
+    if (d.saturday) { sub.textContent = 'No orders on Saturday'; return; }
+    var left = d.suppliers.filter(function (s) { return !s.sent; }).length;
+    if (!d.suppliers.length) sub.textContent = 'Nothing to order right now';
+    else if (left) sub.textContent = left + ' of ' + d.suppliers.length + ' suppliers to send';
+    else sub.textContent = 'All ' + d.suppliers.length + ' sent \u2713';
+  }
+  function openOrders() {
+    show('ordersScreen');
+    $('orList').innerHTML = ''; $('orList').appendChild(el('div', 'loading', 'Loading orders...'));
+    loadOrders(drawOrders);
+  }
+  function copyText(text, done) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+    } else done(false);
+  }
+  function drawOrders() {
+    var L = $('orList'); L.innerHTML = '';
+    var d = S.or;
+    if (!d) { L.appendChild(el('div', 'note-box warn', 'Could not load. Check your signal and go back to try again.')); return; }
+    if (!d.allowed) { L.appendChild(el('div', 'note-box warn', 'Only Arsen and staff allowed to send orders can use this screen.')); return; }
+    if (d.saturday) { L.appendChild(el('div', 'note-box', 'No orders on Saturday. Nothing is delivered on Sunday.')); return; }
+    L.appendChild(el('div', 'note-box', (d.delivery ? 'Delivery: ' + d.delivery + '. ' : '') +
+      'Tap Open WhatsApp, then choose the supplier\'s group and send. The numbers come from the Today\'s Orders tab, so change them there first if needed.'));
+    if (!d.suppliers.length) L.appendChild(el('div', 'dv-extra', 'Nothing to order right now. If Shift 1 is not counted yet, count first.'));
+    d.suppliers.forEach(function (s) {
+      var card = el('div', 'or-sup' + (s.sent ? ' sent' : ''));
+      var head = el('div', 'or-head');
+      head.appendChild(el('b', '', s.name));
+      head.appendChild(el('span', '', s.sent ? 'Sent by ' + s.sent : s.items.length + (s.items.length === 1 ? ' item' : ' items')));
+      card.appendChild(head);
+      var text = s.message || s.items.map(function (i) { return i.item + ' x ' + i.qty; }).join('\n');
+      card.appendChild(el('div', 'or-msg', text));
+      if (s.email) card.appendChild(el('div', 'or-note', 'This supplier gets an email. Use the tick box on the Today\'s Orders tab to send it.'));
+      var btns = el('div', 'or-btns');
+      var wa = el('button', 'or-wa', s.sent ? 'Open WhatsApp again' : 'Open WhatsApp'); wa.type = 'button';
+      wa.onclick = function () {
+        window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+        call('spOrderLog', [S.token, s.name, 'whatsapp'], function () { loadOrders(function () { drawOrders(); drawOrTile(); }); });
+      };
+      var cp = el('button', 'or-copy', 'Copy message'); cp.type = 'button';
+      cp.onclick = function () {
+        copyText(text, function (ok) {
+          cp.textContent = ok ? 'Copied \u2713' : 'Press and hold the message to copy';
+          if (ok) call('spOrderLog', [S.token, s.name, 'copy'], function () {});
+        });
+      };
+      btns.appendChild(wa); btns.appendChild(cp);
+      card.appendChild(btns);
+      L.appendChild(card);
+    });
+    if (d.nothing && d.nothing.length) L.appendChild(el('div', 'dv-extra', 'Nothing to order from: ' + d.nothing.join(', ')));
+  }
+
   /* Wire up */
+  $('orTile').onclick = function () { openOrders(); };
+  $('orBack').onclick = function () { goHome(); };
   $('dvTile').onclick = function () { openDeliveries(); };
   $('dvBack').onclick = function () { goHome(); };
   $('lockBtn').onclick = function () { signOut(); };
