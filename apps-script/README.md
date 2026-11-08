@@ -23,3 +23,11 @@ Live project files: Code.gs, StaffPage.gs, Page.html, Deliveries.gs, PortalBridg
 - Access: Staff tab column D "Can Send Orders" = Y (Arsen and Rhobel). Column C Manager = Arsen only.
   Rhobel must never get manager rights. "Your change" editable 4am to 11pm; managers any time.
 After a change: Deploy > Manage deployments > pencil > Version: New version > Deploy.
+
+8 Nov 2026 evening, changed in the Claude chat (live Orders.gs and Page.html only):
+- Screen and home tile renamed "Place Order for Tomorrow".
+- "Suggested" shown as a bold coloured label on each item.
+- The Bakery: above "Save as draft in Gmail" the app shows "Last LPO was N (used on <date>)" and a box
+  "Write the new LPO number here". The draft button stays locked until a whole number higher than the
+  last LPO is typed. The app writes it to Today's Orders B33 (Rules C2 reads it), then
+  draftBakeryEmail attaches the LPO file. (Rest of this update not received yet.)
