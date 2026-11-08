@@ -3,7 +3,8 @@
 The live versions of these files are in the Apps Script project of the Title Brew TEST sheet
 (Extensions > Apps Script). That project is the master copy.
 
-- `PortalBridge.gs`: same as the live version.
+- `PortalBridge.gs`: live version plus `spSendToPortal` (8 Nov 2026). The live Page.html calls it
+  after every Save: `call('spSendToPortal', [S.token], function () {});` in saveNow.
 - `Deliveries.gs` and `Page.html`: OLDER than the live versions. They were changed further in
   the Claude chat (expiry handling after deliveries, manager PIN, Done screens, search box).
   Do not paste these over the live files.

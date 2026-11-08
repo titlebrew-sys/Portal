@@ -9,8 +9,9 @@
  *   PORTAL_BRIDGE_URL     https://<your project>.supabase.co/functions/v1/sheet-counts
  *   PORTAL_BRIDGE_SECRET  the same text as the Supabase secret BRIDGE_SECRET
  *
- * Then add one line at the very end of saveShift1, saveShift2 and the staff page save (spSave):
+ * Then add one line at the very end of saveShift1 and saveShift2:
  *   portalBridgeSend();
+ * The staff app sends after every Save by calling spSendToPortal (one line in Page.html, in saveNow).
  *
  * It never stops a save: every problem is caught and written to the "Bridge Log" tab.
  * Run portalBridgeTest() first: it writes what it would send to "Bridge Log", without sending.
@@ -52,6 +53,18 @@ function portalBridgeSend(savedBy) {
   } catch (e) {
     portalBridgeLog_('Error', String(e && e.message ? e.message : e));
   }
+}
+
+/**
+ * Called by the staff app right after every Save (staff or manager), so the Portal gets the
+ * counts straight away. The Portal overwrites its copy with the new numbers.
+ * Runs as its own call after "Saved" shows, so staff never wait for it.
+ */
+function spSendToPortal(token) {
+  var name = typeof spWho === 'function' ? spWho(token) : '';
+  if (!name) return { ok: false };
+  portalBridgeSend(name);
+  return { ok: true };
 }
 
 /** Shows what would be sent, in the Bridge Log tab. Sends nothing. */
