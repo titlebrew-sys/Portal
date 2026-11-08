@@ -67,6 +67,36 @@ function spSendToPortal(token) {
   return { ok: true };
 }
 
+/**
+ * "Portal > Send to Portal now" menu in the sheet, for the manager only. Use it after fixing a
+ * count directly in the sheet. Add this line inside onOpen() in Code.gs:
+ *   portalBridgeAddMenu();
+ * Who can see and use it: the Google account in Script Properties PORTAL_SEND_EMAIL.
+ */
+function portalBridgeAddMenu() {
+  try {
+    if (!portalBridgeIsManager_()) return;
+    SpreadsheetApp.getUi().createMenu('Portal').addItem('Send to Portal now', 'portalBridgeSendNow').addToUi();
+  } catch (e) {
+    // Never stop the sheet from opening.
+  }
+}
+
+function portalBridgeIsManager_() {
+  var allowed = String(PropertiesService.getScriptProperties().getProperty('PORTAL_SEND_EMAIL') || '').trim().toLowerCase();
+  var me = String(Session.getActiveUser().getEmail() || '').trim().toLowerCase();
+  return allowed !== '' && me === allowed;
+}
+
+function portalBridgeSendNow() {
+  var ui = SpreadsheetApp.getUi();
+  if (!portalBridgeIsManager_()) { ui.alert('Only the manager can send to the Portal from here.'); return; }
+  portalBridgeSend('Google Sheet (sent by manager)');
+  var log = SpreadsheetApp.getActive().getSheetByName(PORTAL_BRIDGE_LOG);
+  var last = log && log.getLastRow() > 1 ? log.getRange(log.getLastRow(), 1, 1, 2).getDisplayValues()[0] : ['', ''];
+  ui.alert(last[1] === 'Sent' ? 'Sent to the Portal. Refresh the Portal to see it.' : 'Not sent: ' + last[1] + '. See the last line of the Bridge Log tab.');
+}
+
 /** Shows what would be sent, in the Bridge Log tab. Sends nothing. */
 function portalBridgeTest() {
   try {
