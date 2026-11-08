@@ -167,7 +167,7 @@ function RecipeEditor({ recipe, onClose }: { recipe: Recipe; onClose: () => void
         <label className="wide">Note<input className="field" defaultValue={r.note ?? ''} onChange={(e) => setR({ ...r, note: e.target.value || null })} /></label>
       </div>
       <div className="quiet">
-        <button className="btn primary sm" onClick={() => run(() => store.saveRecipes([{ ...r, lines: r.lines.filter((l) => l.ingredientId || l.recipeOf), updatedBy: me.name, updatedAt: new Date().toISOString() }]), 'Recipe saved.').then((ok) => ok && onClose())}>Save recipe</button>
+        <button className="btn primary sm" onClick={() => run(() => store.saveRecipes([{ ...r, lines: r.lines.filter((l) => l.ingredientId || l.recipeOf), note: clearImportNote(r), updatedBy: me.name, updatedAt: new Date().toISOString() }]), 'Recipe saved.').then((ok) => ok && onClose())}>Save recipe</button>
         <button className="btn sm" onClick={onClose}>Cancel</button>
       </div>
     </div>
@@ -361,4 +361,10 @@ function Changes() {
       </div>
     </div>
   );
+}
+
+/** The import's "no matching count item" warning goes away once an ingredient is picked. */
+function clearImportNote(r: { note: string | null; lines: { ingredientId?: string; recipeOf?: string }[] }): string | null {
+  const picked = r.lines.some((l) => l.ingredientId || l.recipeOf);
+  return picked && r.note?.startsWith('Sold as a piece, but no matching count item') ? null : r.note;
 }
