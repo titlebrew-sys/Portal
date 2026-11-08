@@ -12,5 +12,14 @@ The live versions of these files are in the Apps Script project of the Title Bre
 Before changing any of these files, copy the current version from Apps Script first and work
 from that.
 
-Live project files: Code.gs, StaffPage.gs, Page.html, Deliveries.gs, PortalBridge.gs.
+Live project files: Code.gs, StaffPage.gs, Page.html, Deliveries.gs, PortalBridge.gs, Orders.gs.
+
+8 Nov 2026, changed in the Claude chat (not in this repo):
+- NEW Orders.gs (live only): the "Orders for tomorrow" screen. spOrderAccess, spOrders, spSetChange,
+  spOrderDraft, spOrderSent. Reads the Today's Orders tab (Count, Suggested, Your change = column E,
+  Final, Message). Almarai and The Bakery get a Gmail draft (draftBakeryEmail / draftSupplierEmail in
+  Code.gs); WhatsApp suppliers open WhatsApp with the message. Each order is written to "Orders Log".
+- Page.html (live): "Orders for tomorrow" tile and screen added; the spSendToPortal line is kept.
+- Access: Staff tab column D "Can Send Orders" = Y (Arsen and Rhobel). Column C Manager = Arsen only.
+  Rhobel must never get manager rights. "Your change" editable 4am to 11pm; managers any time.
 After a change: Deploy > Manage deployments > pencil > Version: New version > Deploy.
