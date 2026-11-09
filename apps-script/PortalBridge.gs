@@ -107,6 +107,11 @@ function portalBridgeTest() {
     batches.forEach(function (b) {
       portalBridgeLog_('Test: ' + b.area + ' shift ' + b.shift + ' (' + b.business_date + ')', b.rows.length + ' items. First 3: ' + JSON.stringify(b.rows.slice(0, 3)));
     });
+    // Thrown away check: every row that would reach the Portal's Waste page, and the business day used
+    var thrown = [];
+    batches.forEach(function (b) { if (b.area === 'Kitchen' && b.shift === 2) b.rows.forEach(function (r) { if (r.cleared_qty) thrown.push(b.business_date + ' ' + r.item + ' ' + r.cleared_qty + ' ' + r.cleared_reason); }); });
+    var kl = portalBridgeLayout_().Kitchen;
+    portalBridgeLog_('Test: thrown away', (thrown.length ? thrown.join(' | ') : 'NONE found') + ' (business day ' + portalBridgeBusinessKey_() + ', thrown column ' + (kl.s2t || 13) + ', from ' + PORTAL_BRIDGE_THROWN_FROM + ')');
     portalBridgeOrders_().forEach(function (o) {
       portalBridgeLog_('Test: orders ' + o.business_date, o.items.length + ' items. First 3: ' + JSON.stringify(o.items.slice(0, 3)));
     });
