@@ -1,6 +1,6 @@
 # To do next (agreed with Arsen, 8 Nov 2026)
 
-**START HERE (Arsen asked to be reminded first, whatever he types):** open questions on order rules,
+**REMIND ARSEN (he asked):** open questions on order rules,
 asked 8 Nov after reading the sheet's Rules, Suppliers, Bar, Kitchen, Weekly and Today's Orders tabs.
 1. Portal Orders page: mirror the sheet's Today's Orders (recommended, sheet = one place for rules),
    or calculate its own orders from the sheet's Rules?
@@ -21,7 +21,8 @@ After rules: recipes, by asking Arsen questions item by item (Arsen: later).
 Cause found 9 Nov: Rules C2 = 'Today''s Orders'!B33, but the LPO Number row moved (row 40 on 8 Nov).
 draftBakeryEmail reads Rules C2 for the file name and LPO. Fix given: Rules C2 =
 INDEX('Today''s Orders'!B:B, MATCH("LPO Number*", 'Today''s Orders'!A:A, 0)). Waiting for Arsen to
-confirm. The live Orders.gs he pasted has no LPO number box (evening update missing?): asked.
+confirm. Arsen sees the LPO box in the app, but the Orders.gs he pasted has no function for it:
+need the live Page.html to see which server function the box calls.
 
 **Requested 9 Nov: order by email from the staff member's email (APP, Place Order for Tomorrow).**
 Today the Gmail draft (Almarai, The Bakery) goes to the sheet owner's Gmail, because the web app runs
@@ -29,7 +30,8 @@ as the owner. Asked Arsen: A) draft/email in the staff member's own Gmail (needs
 in with Google), B) send from Title Brew with the staff member in copy, C) send directly from Title
 Brew with the staff name, D) other. Arsen chose A, also for WhatsApp (her own WhatsApp: already so).
 Proposed: "Open email" = mailto link on the phone (her own mail app, To/Subject/body filled; no need to
-store her email). The Bakery: "Download LPO" + "Open email", she attaches the file. Waiting for OK.
+store her email). The Bakery: "Download LPO" + "Open email", she attaches the file. Arsen OK (9 Nov),
+but the admin keeps "Save as draft in Gmail" (draft in the Title Brew Gmail with the LPO attached).
 
 **Requested 9 Nov: Delayed / Cancelled buttons in Deliveries (APP, Shift 2, per supplier).**
 When an ordered delivery did not come: "Delayed" (expected next day, the usual case) or
@@ -39,9 +41,8 @@ When an ordered delivery did not come: "Delayed" (expected next day, the usual c
 - Cancelled: the Portal removes the expected arrival; tomorrow's order should suggest those items again.
 - Arsen 9 Nov: Delayed must still allow confirming the same day (last-minute delivery before
   closing). Delayed = not here yet, still expected; unconfirmed at closing moves to tomorrow.
-- Open questions for Arsen: who may press them (any staff, or only managers / "Can Send Orders")?
-  Part came and part delayed? Delayed more than once? Should tomorrow's Today's Orders count
-  delayed items as already coming, so they are not ordered twice?
+- Arsen 9 Nov: any staff may press them; per item (part came, part delayed); tomorrow's suggested
+  order counts delayed items as already coming (needs Code.gs, where Today's Orders is built).
 Touches: live Deliveries.gs and Page.html (copy live first), PortalBridge.gs payload, sheet-counts
 function, Portal Deliveries page.
 
