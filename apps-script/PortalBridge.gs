@@ -221,6 +221,17 @@ function portalBridgeCountTime_(day, shift) {
   return new Date(day + 'T' + (shift === 2 ? close : '16') + ':00:00+04:00').toISOString();
 }
 
+/**
+ * The business day (4am to 4am Dubai) as yyyy-MM-dd: Bar C2 (the sheet sets it to TODAY() minus 1 before 4am).
+ * If Bar C2 is not a date, the real time minus 4 hours.
+ */
+function portalBridgeBusinessKey_() {
+  var bar = SpreadsheetApp.getActive().getSheetByName('Bar');
+  var d = bar ? bar.getRange('C2').getValue() : '';
+  if (Object.prototype.toString.call(d) === '[object Date]') return Utilities.formatDate(d, PORTAL_BRIDGE_TZ, 'yyyy-MM-dd');
+  return Utilities.formatDate(new Date(Date.now() - 4 * 3600e3), PORTAL_BRIDGE_TZ, 'yyyy-MM-dd');
+}
+
 function portalBridgeDayKey_(d) { return Utilities.formatDate(d, PORTAL_BRIDGE_TZ, 'yyyy-MM-dd'); }
 
 /** The last 2 days from the History tab (each day: Shift 1, Shift 2, Expiry, Cleared). */
@@ -331,9 +342,9 @@ function portalBridgeOrders_() {
   // Title Brew orders nothing on Saturday (no Sunday deliveries): Friday orders for Saturday, Sunday for Monday
   var isSaturday = function (key) { return new Date(key + 'T12:00:00Z').getUTCDay() === 6; };
   var to = ss.getSheetByName("Today's Orders");
-  // Only from 4pm: before the Shift 1 count the tab shows suggestions from empty counts
+  // Only from 4pm of the business day (4pm until 4am): before the Shift 1 count the tab shows suggestions from empty counts
   var hourNow = Number(Utilities.formatDate(new Date(), PORTAL_BRIDGE_TZ, 'H'));
-  if (to && to.getLastRow() > 0 && hourNow >= 16 && !isSaturday(todayKey)) {
+  if (to && to.getLastRow() > 0 && (hourNow >= 16 || hourNow < 4) && !isSaturday(todayKey)) {
     var items = [];
     to.getRange(1, 1, to.getLastRow(), 19).getValues().forEach(function (r) {
       // A item, F final order, Q rule, S count units per order unit

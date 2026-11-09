@@ -147,6 +147,13 @@ valid and M > 0); Shift 2 old/new/frozen as they are; only for business dates fr
 earlier days keep the old rule; History (portalBridgeHistory_) keeps its Cleared text format and does not set old = 0 from 10 Nov.
 Then: Deploy > Manage deployments > pencil > New version > Deploy. Untested in the real sheet.
 
+**Update from the Claude chat, 10 Nov: business day 4am to 4am in the sheet.** Live Code.gs and StaffPage.gs changed (Page.html, Orders.gs,
+Deliveries.gs, PortalBridge.gs not changed live): Bar!C2 and Kitchen!C2 = TODAY()-IF(HOUR(NOW())<4,1,0) (one-time setupBusinessDay()),
+spTodayKey() = business day, clearCount() uses the calendar date.
+**Built 10 Nov, waiting for Arsen to paste (repo copies, not checked against live):** PortalBridge.gs (new portalBridgeBusinessKey_();
+orders are sent from 4pm until 4am, hour >= 16 or < 4) and PortalOrders.gs (the "saturday" flag uses the business day). Paste both,
+then Deploy > Manage deployments > pencil > New version > Deploy. The earlier Kitchen "Thrown away" change is in the same PortalBridge.gs.
+
 1. **Order rules: one source.** The Google Sheet's Rules tab (when to order what, per supplier)
    does not match the Portal's own copy of the rules. The Portal should read the suppliers, rules
    and items from the Google Sheet, so the Orders page suggests the same as Today's Orders.

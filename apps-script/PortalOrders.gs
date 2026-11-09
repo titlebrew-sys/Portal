@@ -36,7 +36,7 @@ function portalBridgeSheetOrders_() {
       delivery: String(sh.getRange('B3').getDisplayValue()),
       note: String(sh.getRange('D2').getDisplayValue()),
       notCounted: String(sh.getRange('B4').getDisplayValue()),
-      saturday: Utilities.formatDate(new Date(), PORTAL_BRIDGE_TZ, 'u') === '6',
+      saturday: new Date(portalBridgeBusinessKey_() + 'T12:00:00Z').getUTCDay() === 6, // business day, not the calendar day
       suppliers: list
     };
   } catch (e) {
