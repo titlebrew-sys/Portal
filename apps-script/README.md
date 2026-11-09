@@ -3,6 +3,8 @@
 The live versions of these files are in the Apps Script project of the Title Brew TEST sheet
 (Extensions > Apps Script). That project is the master copy.
 
+- `Code.gs`: same as live (copied 9 Nov 2026). Today's Orders numbers (Suggested etc.) are sheet
+  formulas on that tab, not in Code.gs.
 - `PortalBridge.gs`: live version plus `spSendToPortal` (8 Nov 2026). The live Page.html calls it
   after every Save: `call('spSendToPortal', [S.token], function () {});` in saveNow.
   Also the manager-only sheet menu "Portal > Send to Portal now" (portalBridgeAddMenu, called from
