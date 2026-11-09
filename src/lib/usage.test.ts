@@ -81,6 +81,7 @@ describe('acceptance: exact ingredients for known sales', () => {
     expect(uses('Flat White', [{ group: 'Extra Shot', option: 'Extra Shot (Ethiopia)' }])['bean-ethiopia']).toBe(18);
     expect(uses('Flat White', [{ group: 'Extra Shot', option: 'Extra Shot (Brazil)' }])['bean-brazil']).toBe(36);
     expect(uses('Latte', [{ group: 'Beans', option: 'Colombia (Filter)' }])['bean-colombia-filter']).toBe(18);
+    expect(uses('Latte', [{ group: 'Beans', option: 'Ethiopia Sidamo (Filter)' }])['bean-sidamo']).toBe(18);
   });
   it('Extra shot, syrups, RAF extra pump', () => {
     expect(uses('Flat White', [{ group: 'Extra Shot', option: 'Ethiopia' }])).toEqual({ 'bean-brazil': 18, 'bean-ethiopia': 18, 'milk-full-fat': 150 });
@@ -144,7 +145,7 @@ describe('live update with Arsen answers', () => {
     expect(by('Nitro Cold Brew')!.lines).toEqual([{ ingredientId: 'nitro-cartridge', qty: 0.33 }]);
   });
   it('adds the missing choice rules once', () => {
-    expect(updateRules([], 'Arsen').length).toBe(5);
+    expect(updateRules([], 'Arsen').length).toBe(6);
     expect(updateRules(START_MODIFIER_RULES, 'Arsen')).toEqual([]);
   });
 });

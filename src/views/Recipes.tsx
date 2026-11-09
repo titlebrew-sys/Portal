@@ -82,7 +82,7 @@ function NovUpdate() {
       <span>
         <b>Update recipes with your answers. </b>
         This changes {recipes.length} recipes (18 g espresso coffee, 20 g filter, Ethiopia default for Espresso, Long Black and filter, nitro 0.33 cartridge)
-        and {rules.length} choices (Extra Shot 18 g, Colombia filter beans). You can see every change on the Changes tab.
+        and {rules.length} choices (Extra Shot 18 g, Ethiopia Sidamo filter beans, and Colombia kept for older sales). You can see every change on the Changes tab.
       </span>
       <div>
         <button className="btn sm primary" onClick={() => run(async () => {

@@ -10,7 +10,7 @@ import {
 
 /** Ids of the starting rules this update adds or replaces. */
 const RULE_IDS = new Set([
-  'mod-extrashot-brazil', 'mod-extrashot-ethiopia', 'mod-extrashot-extrashotbrazil', 'mod-extrashot-extrashotethiopia', 'mod-beans-colombiafilter',
+  'mod-extrashot-brazil', 'mod-extrashot-ethiopia', 'mod-extrashot-extrashotbrazil', 'mod-extrashot-extrashotethiopia', 'mod-beans-colombiafilter', 'mod-beans-ethiopiasidamofilter',
 ]);
 
 const has = (list: string[], name: string) => list.some((n) => norm(n) === norm(name));
