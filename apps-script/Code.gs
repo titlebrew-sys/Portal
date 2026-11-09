@@ -365,6 +365,8 @@ function clearCount() {
     });
   });
   yourChangeRows.forEach(function (row) { to.getRange(row, 5).clearContent(); });
+  // Delayed deliveries: clear yesterday's "still coming" (column W, Deliveries file)
+  if (typeof dvWriteComing_ === 'function') { try { dvWriteComing_(); } catch (e) { Logger.log('Still coming: ' + e); } }
   SpreadsheetApp.flush();
 
   // 4. Fill in today's expiry dates

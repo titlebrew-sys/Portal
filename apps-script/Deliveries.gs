@@ -200,6 +200,60 @@ function dvApplyExpiry_(dayKey) {
   });
 }
 
+/* ---------------- Delayed items lower tomorrow's suggestion ---------------- */
+
+var DV_COMING_COL = 23;   // Today's Orders column W: still coming, in count units
+
+/**
+ * Writes today's delayed quantities (count units) into Today's Orders column W, next to each item.
+ * Column O (the suggestion) uses count + W after setupStillComing has been run once.
+ * Called after every confirmation, and at 4am (empty then, so the column is cleared).
+ */
+function dvWriteComing_() {
+  var to = SpreadsheetApp.getActive().getSheetByName("Today's Orders");
+  if (!to || to.getLastRow() < 2) return;
+  if (to.getMaxColumns() < DV_COMING_COL) to.insertColumnsAfter(to.getMaxColumns(), DV_COMING_COL - to.getMaxColumns());
+  var coming = dvStillComing_(spTodayKey());
+  var n = to.getLastRow();
+  var a = to.getRange(1, 1, n, 17).getValues();
+  var out = a.map(function (r) {
+    if (!r[16] || !r[0]) return [''];                       // item rows only (column Q holds the rule)
+    var q = coming[String(r[0])];
+    return [q > 0 ? Math.round(q * dvPackOf_(String(r[0])) * 1000) / 1000 : ''];
+  });
+  // Keep the "Still coming" headers on the Item rows
+  a.forEach(function (r, i) { if (String(r[0]) === 'Item') out[i] = ['Still coming']; });
+  to.getRange(1, DV_COMING_COL, n, 1).setValues(out);
+}
+
+/**
+ * Run ONCE from the Apps Script editor (choose setupStillComing, click Run).
+ * Changes each item's suggestion formula (Today's Orders column O) from "count" to
+ * "count + still coming (column W)", so delayed items are not ordered twice.
+ * Safe to run again: rows already changed are left alone.
+ */
+function setupStillComing() {
+  var to = SpreadsheetApp.getActive().getSheetByName("Today's Orders");
+  var n = to.getLastRow();
+  var a = to.getRange(1, 1, n, 17).getValues();
+  var f = to.getRange(1, 15, n, 1).getFormulas();
+  var changed = 0, skipped = 0;
+  for (var i = 0; i < n; i++) {
+    if (!a[i][16] || !a[i][0]) continue;
+    var row = i + 1, old = String(f[i][0]);
+    if (!old) { skipped++; continue; }
+    if (old.indexOf('N(W' + row + ')') >= 0) continue;
+    var b = new RegExp('(?<![A-Z$])B' + row + '(?!\\d)', 'g');
+    var next = old.replace(b, '(B' + row + '+N(W' + row + '))')
+      .replace('OR((B' + row + '+N(W' + row + '))=""', 'OR(B' + row + '=""');
+    to.getRange(row, 15).setFormula(next);
+    changed++;
+  }
+  dvWriteComing_();
+  SpreadsheetApp.getActive().toast(changed + ' suggestions now count delayed items as coming.' + (skipped ? ' ' + skipped + ' rows had no formula.' : ''), 'Title Brew', 8);
+  return { changed: changed, skipped: skipped };
+}
+
 /* ---------------- Called by the staff page ---------------- */
 
 function spDeliveries(token) {
@@ -277,6 +331,7 @@ function spConfirmDelivery(token, supplier, items, rest) {
     sh.getRange(2, 2, sh.getLastRow() - 1, 1).setNumberFormat('ddd d mmm, h:mm am/pm');
     SpreadsheetApp.flush();
     try { dvApplyExpiry_(today); } catch (e) { Logger.log('Expiry from deliveries: ' + e); }
+    try { dvWriteComing_(); } catch (e) { Logger.log('Still coming: ' + e); }
   } finally {
     lock.releaseLock();
   }

@@ -3,13 +3,14 @@
 The live versions of these files are in the Apps Script project of the Title Brew TEST sheet
 (Extensions > Apps Script). That project is the master copy.
 
-- `Code.gs`: same as live (copied 9 Nov 2026). Today's Orders numbers (Suggested etc.) are sheet
+- `Code.gs`: live (9 Nov) plus one line in clearCount: clears Today's Orders column W at 4am. Today's Orders numbers (Suggested etc.) are sheet
   formulas on that tab, not in Code.gs.
 - `PortalBridge.gs`: live version plus `spSendToPortal` (8 Nov 2026). The live Page.html calls it
   after every Save: `call('spSendToPortal', [S.token], function () {});` in saveNow.
   Also the manager-only sheet menu "Portal > Send to Portal now" (portalBridgeAddMenu, called from
   onOpen in Code.gs; Script Property PORTAL_SEND_EMAIL = the manager's Google account).
-- `Deliveries.gs`: live (9 Nov) plus Delayed / Delivery cancelled (Status column P on the Deliveries tab).
+- `Deliveries.gs`: live (9 Nov) plus Delayed / Delivery cancelled (Status column P on the Deliveries tab),
+  and "still coming" in Today's Orders column W; run setupStillComing once so column O uses count + W.
 - `Orders.gs`: live version (9 Nov) plus the LPO number fix: shows the last LPO, writes the typed
   number into the LPO Number row (found by label), then makes the draft. Also staff ordering from their own email (Download LPO, Open email).
 - `Page.html`: live (9 Nov) plus Delayed / Cancelled buttons and Download LPO / Open email.
