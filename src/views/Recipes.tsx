@@ -5,6 +5,7 @@ import type { Ingredient, LineRole, ModifierEffect, ModifierRule, Receipt, Recip
 import { START_MODIFIER_RULES, norm } from '../lib/catalog';
 import { importRecipes, isIngredientOnly } from '../lib/importRecipes';
 import { startIngredients } from '../data/seed';
+import { updateRecipes, updateRules } from '../lib/recipeUpdate';
 import { fmtDubaiTime, fmtShortDate } from '../lib/time';
 import { findRule, makeBook, receiptUsage, recipeSentence, ruleSentence, takeawaySentence, type RecipeBook } from '../lib/usage';
 import { dayEnd, dayStart, receiptsBetween } from '../lib/useStock';
@@ -20,6 +21,7 @@ export function Recipes() {
       <MobileWho />
       <Head eyebrow="Setup" title="Recipes" sub="What every menu item and every choice uses, in g, ml and pieces. These recipes, not Loyverse, decide stock use." />
       <Starter />
+      <NovUpdate />
       <div className="tabs">
         <button className="btn sm" aria-pressed={tab === 'items'} onClick={() => setTab('items')}>Menu items</button>
         <button className="btn sm" aria-pressed={tab === 'choices'} onClick={() => setTab('choices')}>Choices</button>
@@ -64,6 +66,30 @@ function Starter() {
       )}
       {(needSetup || missing.length > 0) && <div><button className="btn sm primary" onClick={build}>{needSetup ? 'Set up recipes' : 'Add the missing recipes'}</button></div>}
       {notes.map((n, i) => <span key={i}>{n}</span>)}
+    </div>
+  );
+}
+
+/** Owner button: puts Arsen's 9 Nov answers into the live recipes and choice rules. */
+function NovUpdate() {
+  const { data, me, store, run } = useApp();
+  if (me.role !== 'owner' || !data.book.recipes.length) return null;
+  const rules = updateRules(data.book.modifierRules, me.name);
+  const recipes = updateRecipes(data.book.recipes, me.name);
+  if (!rules.length && !recipes.length) return null;
+  return (
+    <div className="banner info" style={{ flexDirection: 'column' }}>
+      <span>
+        <b>Update recipes with your answers. </b>
+        This changes {recipes.length} recipes (18 g espresso coffee, 20 g filter, Ethiopia default for Espresso, Long Black and filter, nitro 0.33 cartridge)
+        and {rules.length} choices (Extra Shot 18 g, Colombia filter beans). You can see every change on the Changes tab.
+      </span>
+      <div>
+        <button className="btn sm primary" onClick={() => run(async () => {
+          for (const r of rules) await store.saveModifierRule(r);
+          if (recipes.length) await store.saveRecipes(recipes);
+        }, 'Recipes updated.')}>Update now</button>
+      </div>
     </div>
   );
 }

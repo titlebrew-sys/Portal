@@ -110,6 +110,15 @@ When an ordered delivery did not come: "Delayed" (expected next day, the usual c
 Touches: live Deliveries.gs and Page.html (copy live first), PortalBridge.gs payload, sheet-counts
 function, Portal Deliveries page.
 
+**Recipes: Arsen said GO (9 Nov). Step 1 built, waiting for Arsen to test:** coffee 18 g (espresso) and 20 g
+(V60, Ice V60, AeroPress), Ethiopia default for Espresso, Long Black, Ice Long Black, filter; Extra Shot (Ethiopia/Brazil)
+18 g; Colombia (Filter) rule; nitro 0.33 cartridge. Live data changes only when the owner presses
+"Update now" on the Portal Recipes page (src/lib/recipeUpdate.ts). Still to build, in order: 2) milk amounts
+(214 / 322 ml, take-away rules, + Size cold drink, Spanish Latte condensed milk 25/35 g), 3) retail bags
+(4+ same origin on a receipt come from counted stock), 4) roast detection (+4 kg between counts),
+5) cold brew 180 g question in the APP (needs the LIVE Page.html and Bar count code from Arsen),
+6) list of choices with no rule (exists), "sold more than was counted" text.
+
 1. **Order rules: one source.** The Google Sheet's Rules tab (when to order what, per supplier)
    does not match the Portal's own copy of the rules. The Portal should read the suppliers, rules
    and items from the Google Sheet, so the Orders page suggests the same as Today's Orders.

@@ -4,7 +4,7 @@
  */
 import type { CountItem, Ingredient, Recipe, RecipeLine } from '../types';
 import {
-  BEAN_BAGS, BUNDLES, COFFEE_DRINKS, COFFEE_GRAMS, COLD_BREWS, COLD_BREW_GRAMS, FIXED_RECIPES, LOYVERSE_INGREDIENTS, SET_AMOUNTS, TAKEAWAY, norm,
+  BEAN_BAGS, BUNDLES, COFFEE_DRINKS, COFFEE_GRAMS, COLD_BREWS, COLD_BREW_GRAMS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, FIXED_RECIPES, LOYVERSE_INGREDIENTS, SET_AMOUNTS, TAKEAWAY, norm,
 } from './catalog';
 
 export interface LyItem {
@@ -98,10 +98,11 @@ export function importRecipes(items: LyItem[], ingredients: Ingredient[], by = '
     // ---- Rimma's corrections
     const fixed = Object.entries(FIXED_RECIPES).find(([n]) => norm(n) === norm(it.name));
     if (fixed) lines = fixed[1].map((l) => ({ ...l }));
-    const coffee = has(COLD_BREWS, it.name) ? COLD_BREW_GRAMS : COFFEE_GRAMS;
-    lines = lines.map((l) => (l.role === 'coffee' ? { ...l, qty: coffee } : l));
+    const coffee = has(COLD_BREWS, it.name) ? COLD_BREW_GRAMS : has(FILTER_DRINKS, it.name) ? FILTER_GRAMS : COFFEE_GRAMS;
+    const bean = has(ETHIOPIA_DEFAULT, it.name) ? 'bean-ethiopia' : 'bean-brazil';
+    lines = lines.map((l) => (l.role === 'coffee' ? { ...l, qty: coffee, ingredientId: bean } : l));
     if ((has(COFFEE_DRINKS, it.name) || has(COLD_BREWS, it.name)) && !lines.some((l) => l.role === 'coffee'))
-      lines.unshift({ ingredientId: 'bean-brazil', role: 'coffee', qty: coffee });
+      lines.unshift({ ingredientId: bean, role: 'coffee', qty: coffee });
     for (const [n, id, qty] of SET_AMOUNTS) {
       if (norm(n) !== norm(it.name)) continue;
       const l = lines.find((x) => x.ingredientId === id);

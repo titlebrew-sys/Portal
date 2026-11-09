@@ -175,8 +175,10 @@ const CLASSIC = ['Espresso', 'Long Black', 'Cappuccino', 'Flat White', 'Latte', 
 export const START_MODIFIER_RULES: ModifierRule[] = [
   ...MILKS.map(([o, id]) => rule('Alternative Milk', o, [{ type: 'milk', ingredientId: id }])),
   ...BEANS.map(([o, id]) => rule('Beans', o, [{ type: 'bean', ingredientId: id }])),
-  rule('Extra Shot', 'Brazil', [{ type: 'add', qty: 22, ingredientId: 'bean-brazil' }]),
-  rule('Extra Shot', 'Ethiopia', [{ type: 'add', qty: 22, ingredientId: 'bean-ethiopia' }]),
+  rule('Extra Shot', 'Brazil', [{ type: 'add', qty: 18, ingredientId: 'bean-brazil' }]),
+  rule('Extra Shot', 'Ethiopia', [{ type: 'add', qty: 18, ingredientId: 'bean-ethiopia' }]),
+  rule('Extra Shot', 'Extra Shot (Brazil)', [{ type: 'add', qty: 18, ingredientId: 'bean-brazil' }]),
+  rule('Extra Shot', 'Extra Shot (Ethiopia)', [{ type: 'add', qty: 18, ingredientId: 'bean-ethiopia' }]),
   rule('Extra Shot', 'Matcha', [{ type: 'add', qty: 3, ingredientId: 'matcha' }]),
   rule('Syrup', 'Salted Caramel (3pmp)', [{ type: 'add', qty: 30, ingredientId: 'syrup-salted-caramel' }]),
   rule('Syrup', 'Hazelnut (3pmp)', [{ type: 'add', qty: 30, ingredientId: 'syrup-hazelnut' }]),
@@ -202,9 +204,16 @@ export const START_MODIFIER_RULES: ModifierRule[] = [
 
 // ---------------------------------------------------------------- recipe corrections from Rimma
 
-export const COFFEE_GRAMS = 22;
+/** Espresso-based drinks use 18 g; filter drinks (V60, Ice V60, AeroPress) use 20 g. */
+export const COFFEE_GRAMS = 18;
+export const FILTER_GRAMS = 20;
+export const FILTER_DRINKS = ['V60', 'Ice V60', 'AeroPress'];
+/** Drinks whose default beans are Ethiopia (everything else defaults to Brazil). Filter drinks too. */
+export const ETHIOPIA_DEFAULT = ['Espresso', 'Long Black', 'Ice Long Black', 'Americano', 'Ice Americano', ...FILTER_DRINKS];
+/** One nitrogen cartridge makes 1 L of nitro cold brew; a serving is 330 ml. */
+export const NITRO_PER_SERVING = 0.33;
 export const COLD_BREW_GRAMS = 32;
-/** Coffee drinks that must have 22 g coffee even if Loyverse has none. */
+/** Coffee drinks that must have the coffee grams even if Loyverse has none. */
 export const COFFEE_DRINKS = ['Espresso', 'Long Black', 'Lungo', 'Macchiato', 'Cortado', 'Piccolo', 'Latte Macchiato', 'V60', 'AeroPress', 'Ristretto',
   'Cappuccino', 'Cappucino', 'Flat White', 'Latte', 'Spanish Latte', 'Ice Latte', 'Ice Spanish Latte', 'Iced Spanish Latte', 'Ice Long Black', 'Ice V60',
   'RAF', 'Ice RAF', 'Toffee Coffee', 'Ice Toffee Coffee', 'Mocha Belgian', 'Ice Belgian Mocha', 'Affogato', 'Espresso Sour'];
