@@ -46,3 +46,7 @@ After a change: Deploy > Manage deployments > pencil > Version: New version > De
   (orBlocks_, orBlockData_ in Orders.gs) and portalBridgeSendOrders sends it to the sheet-counts function as "sheet_orders".
   Run portalBridgeSetupOrdersTrigger once: it sends every 10 minutes. Only problems go to the Bridge Log.
   Needs PortalBridge.gs (settings, portalBridgeLog_) and Orders.gs. Sends no Staff tab data.
+
+10 Nov 2026, Kitchen "Thrown away" column (column M). PortalBridge.gs in this repo is changed (not yet pasted live): thrown quantity now
+comes from column M for business dates from 10 Nov 2026; Shift 2 G / I / L are what is left. Code.gs, StaffPage.gs, Page.html were changed
+live in the Claude chat (copies not in this repo).

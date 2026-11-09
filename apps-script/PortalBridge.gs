@@ -20,11 +20,13 @@
 /** Same as LAYOUT in the ordering script; used only if that one cannot be read. */
 var PORTAL_BRIDGE_LAYOUT = {
   Bar: { s1a: 4, s2a: 5 },
-  Kitchen: { s1a: 5, s1b: 6, s1c: 11, s2a: 7, s2b: 9, s2c: 12, expOld: 3, expNew: 4, rsn: 8 },
+  Kitchen: { s1a: 5, s1b: 6, s1c: 11, s2a: 7, s2b: 9, s2c: 12, expOld: 3, expNew: 4, rsn: 8, s2t: 13 },
   Weekly: { s1a: 4 },
 };
 var PORTAL_BRIDGE_FIRST_ROW = 8;
 var PORTAL_BRIDGE_TZ = 'Asia/Dubai';
+/** From this business day the Kitchen has a "Thrown away" column (M); Shift 2 G / I / L are what is LEFT on the shelf. */
+var PORTAL_BRIDGE_THROWN_FROM = '2026-11-10';
 var PORTAL_BRIDGE_REASONS = ['Expired', 'Damaged', 'Not sold'];
 var PORTAL_BRIDGE_LOG = 'Bridge Log';
 
@@ -161,26 +163,32 @@ function portalBridgeBatches_(savedBy) {
   add('Bar', 1, bar1);
   add('Bar', 2, bar2);
 
-  // Kitchen: old, new and frozen, with expiry dates; a reason in column H means the Shift 2 "old" number was thrown away
+  // Kitchen: old, new and frozen, with expiry dates. From 10 Nov 2026 the thrown away number is column M (reason in H)
+  // and Shift 2 old / new / frozen are what is left. Before that, a reason in H meant the Shift 2 "old" number (G) was thrown away.
   var K = L.Kitchen, k1 = [], k2 = [];
+  var thrownCol = day >= PORTAL_BRIDGE_THROWN_FROM;
   read('Kitchen').forEach(function (r) {
     var g = function (c) { return c ? r[c - 1] : ''; };
     var item = String(r[1]), sec = String(r[0]);
     var reason = String(g(K.rsn));
-    var cleared = PORTAL_BRIDGE_REASONS.indexOf(reason) >= 0 ? (n(g(K.s2a)) || 0) : null;
+    var validReason = PORTAL_BRIDGE_REASONS.indexOf(reason) >= 0;
+    var cleared = thrownCol
+      ? (validReason && (n(g(K.s2t || 13)) || 0) > 0 ? n(g(K.s2t || 13)) : null)
+      : (validReason ? (n(g(K.s2a)) || 0) : null);
+    var oldLeft = function () { return (cleared !== null && !thrownCol) ? 0 : n(g(K.s2a)); };
     var exp = { old_expiry: portalBridgeDate_(g(K.expOld)), new_expiry: portalBridgeDate_(g(K.expNew)) };
     var s1, s2;
     if (sec === 'Croissants') {
       s1 = { old: n(g(K.s1a)), new: n(g(K.s1b)), frozen: n(g(K.s1c)) };
-      s2 = { old: cleared !== null ? 0 : n(g(K.s2a)), new: n(g(K.s2b)), frozen: n(g(K.s2c)) };
+      s2 = { old: oldLeft(), new: n(g(K.s2b)), frozen: n(g(K.s2c)) };
     } else if (sec.indexOf('Track') >= 0) {
       s1 = { qty: n(g(K.s1a)) };
       s2 = { qty: n(g(K.s2a)) };
     } else if (shelf[item]) {
       s1 = { old: n(g(K.s1a)), new: n(g(K.s1b)) };
-      s2 = { old: cleared !== null ? 0 : n(g(K.s2a)), new: n(g(K.s2b)) };
+      s2 = { old: oldLeft(), new: n(g(K.s2b)) };
     } else {
-      // No shelf life (e.g. energy balls): Shift 2 old is only used for thrown away pieces
+      // No shelf life (e.g. energy balls): Shift 2 G is not used; I = available left, M = thrown away
       s1 = { old: n(g(K.s1a)), new: n(g(K.s1b)) };
       s2 = { new: n(g(K.s2b)) };
     }
@@ -272,7 +280,8 @@ function portalBridgeHistory_() {
       var a = portalBridgeParseCount_(s1);
       if (a) push('Kitchen', 1, Object.assign({ item: item }, a, e));
       var b = portalBridgeParseCount_(s2);
-      if (b && clearedQty !== null && b.old !== undefined) b.old = 0; // the old number was what was thrown away
+      // Before 10 Nov the old number was what was thrown away; from 10 Nov it is what was left
+      if (b && clearedQty !== null && b.old !== undefined && day < PORTAL_BRIDGE_THROWN_FROM) b.old = 0;
       if (b || clearedQty) push('Kitchen', 2, Object.assign({ item: item }, b || {}, e, clearedQty ? { cleared_qty: clearedQty, cleared_reason: reason } : {}));
     });
     Object.keys(groups).forEach(function (k) { out.push(groups[k]); });

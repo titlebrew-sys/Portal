@@ -136,6 +136,17 @@ from the batch (dine-in 330 ml, take-away 280 ml, sweetener 20 ml). Still to bui
 - Roast: "about once a week", typical roast size not yet given.
 - Syrup pump = 10 ml (used in Extra Pump rules too): never confirmed.
 
+**Update from the Claude chat, 10 Nov: Kitchen "Thrown away" column (APP).** Live Code.gs, StaffPage.gs, Page.html changed
+(Orders.gs, Deliveries.gs, PortalBridge.gs NOT changed); new one-time upgradeThrownAway() in Code.gs. New Kitchen column M
+"Thrown away" (LAYOUT.Kitchen.s2t = 13). At Shift 2 Kitchen G (Old), I (New), L (Frozen) now mean what is LEFT on the shelf after
+clearing; thrown today goes in M, reason stays in H, note in J. Old baked croissants must be 0 at Shift 2 (entered in M).
+Choco and matcha balls: G unused at Shift 2; I = Available left, M = thrown.
+**Built 10 Nov, waiting for Arsen:** apps-script/PortalBridge.gs (repo copy, built on the repo copy, NOT checked against the live file:
+Arsen to paste it over the live PortalBridge.gs, or send the live one first): cleared qty = column M (only if reason in H is
+valid and M > 0); Shift 2 old/new/frozen as they are; only for business dates from 10 Nov 2026 (PORTAL_BRIDGE_THROWN_FROM);
+earlier days keep the old rule; History (portalBridgeHistory_) keeps its Cleared text format and does not set old = 0 from 10 Nov.
+Then: Deploy > Manage deployments > pencil > New version > Deploy. Untested in the real sheet.
+
 1. **Order rules: one source.** The Google Sheet's Rules tab (when to order what, per supplier)
    does not match the Portal's own copy of the rules. The Portal should read the suppliers, rules
    and items from the Google Sheet, so the Orders page suggests the same as Today's Orders.
