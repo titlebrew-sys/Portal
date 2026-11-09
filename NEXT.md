@@ -45,6 +45,17 @@ After rules: recipes, by asking Arsen questions item by item (Arsen: later).
   - Sizes: Cappucino Large = 8oz to 12oz; Flat White Large = 6.5oz to 8oz (modifiers);
     "+ Size cold drink" is a menu item.
   - Americano = Long Black, Ice Americano = Ice Long Black in Loyverse.
+- 9 Nov answers 3:
+  - Cold brew question in the APP: "Yes made, 180 g used" or "Not made". No counting of cold brew
+    litres (Arsen: keep it simple).
+  - Roast: no staff entry. Idea offered: the Portal treats an increase in a bean count as "roast
+    added (assumed)", above a threshold. Asked: typical roast amount into stock, how often.
+  - "+ Size cold drink": Ice Matcha +3 g matcha and 312 ml milk; Ice Tea one more serving and
+    2 more pumps of sweetener; iced coffee drinks 300 ml milk + one more double espresso.
+  - Flat White Large take-away: 214 ml milk.
+  - Spanish Latte condensed milk: dine-in 25 g, take-away 35 g.
+  - Retail bags: options offered (A separate "(one bag)" items in Loyverse, recommended; B variant;
+    C guess by quantity; modifier). Waiting for Arsen's choice.
 Recipes job ideas: a list of Loyverse choices (modifiers) the Portal has no rule for, so names like
 "Ethiopia Sidamo (Filter)" (9 Nov: fell back to Colombia filter beans) are caught early; clearer text
 when expected stock is below zero ("sold more than was counted").
