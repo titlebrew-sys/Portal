@@ -29,6 +29,22 @@ After rules: recipes, by asking Arsen questions item by item (Arsen: later).
   is charged 4 x 250 g but gets one bigger bag filled from the counted bean stock, not from the shelf.
 - Milk: regular milk drinks 214 ml; large (takeaway large, 12oz cup) 322 ml, like a takeaway latte.
   Dine-in cups have set sizes. Questions open (see chat 9 Nov).
+- 9 Nov answers 2:
+  - Cold brew: option B. The Bar count asks under Ethiopia beans, at BOTH shifts, whether cold brew
+    was made, naming the exact time span (since the last count until now), so the beans come off when
+    brewed. 330 ml for dine-in and take-away.
+  - Retail bags: single retail bags (Brazil 250g, Ethiopia 250g only) come from the shelf. One zipper
+    bag of 500 g / 750 g / 1 kg is always filled from the counted shop stock. Mixed origins are always
+    separate retail bags. Loyverse can't tell the two apart yet (both sold as 250 g items): needs a way.
+  - Roasting: Arsen roasts green beans; from each roast he packs 250 g retail bags for the shelf, and
+    the rest goes into the counted shop stock.
+  - Milk: all dine-in cups 214 ml. Take-away: Cappuccino Large and every Latte (all kinds, incl.
+    Latte Macchiato) 322 ml; other take-away milk drinks 214 ml. Cortado, Macchiato, Piccolo 214 ml.
+    Iced milk drinks 214 ml; with "+ Size cold drink" (16oz instead of 12oz clear cup) 300 ml milk
+    and one more double espresso. No large for dine-in.
+  - Sizes: Cappucino Large = 8oz to 12oz; Flat White Large = 6.5oz to 8oz (modifiers);
+    "+ Size cold drink" is a menu item.
+  - Americano = Long Black, Ice Americano = Ice Long Black in Loyverse.
 Recipes job ideas: a list of Loyverse choices (modifiers) the Portal has no rule for, so names like
 "Ethiopia Sidamo (Filter)" (9 Nov: fell back to Colombia filter beans) are caught early; clearer text
 when expected stock is below zero ("sold more than was counted").
