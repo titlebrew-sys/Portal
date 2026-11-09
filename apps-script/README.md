@@ -40,3 +40,9 @@ After a change: Deploy > Manage deployments > pencil > Version: New version > De
   "Write the new LPO number here". The draft button stays locked until a whole number higher than the
   last LPO is typed. The app writes it to Today's Orders B33 (Rules C2 reads it), then
   draftBakeryEmail attaches the LPO file. (Rest of this update not received yet.)
+
+10 Nov 2026, Portal Orders page copies the sheet (new file, nothing live was edited):
+- NEW PortalOrders.gs: portalBridgeSheetOrders_ reads Today's Orders with the same functions as the staff app's Orders screen
+  (orBlocks_, orBlockData_ in Orders.gs) and portalBridgeSendOrders sends it to the sheet-counts function as "sheet_orders".
+  Run portalBridgeSetupOrdersTrigger once: it sends every 10 minutes. Only problems go to the Bridge Log.
+  Needs PortalBridge.gs (settings, portalBridgeLog_) and Orders.gs. Sends no Staff tab data.

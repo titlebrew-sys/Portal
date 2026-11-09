@@ -167,6 +167,51 @@ export interface AppData {
   lpoNext: number;
   /** Ingredients, recipes, modifier rules and sync status (phase 2). */
   book: StockBook;
+  /** A copy of the sheet's Today's Orders tab (what to order from each supplier). Null until the sheet has sent it. */
+  sheetOrders: SheetOrders | null;
+}
+
+// ---------------------------------------------------------------- the sheet's Today's Orders, copied as it is
+
+export interface SheetOrderRow {
+  item: string;
+  /** What staff counted, as written in the sheet, and its unit. */
+  count: string;
+  unit: string;
+  /** The sheet's own suggestion, written in the sheet. */
+  suggested: string;
+  /** Typed over the suggestion in the sheet or the staff app, empty when the suggestion was accepted. */
+  change: string;
+  /** The order that goes out, in order units. */
+  final: number;
+  orderUnit: string;
+  notes: string;
+  /** Items from an earlier order that are delayed and still expected. */
+  coming: number;
+}
+
+export interface SheetSupplierOrder {
+  name: string;
+  how: string;
+  /** The sheet's status cell for this supplier. */
+  status: string;
+  /** What was done today in the staff app, e.g. "Draft saved by Rhobel at 5:10pm". Empty when nothing yet. */
+  done: string;
+  message: string;
+  rows: SheetOrderRow[];
+  /** True when at least one item has a final order above 0. */
+  toOrder: boolean;
+}
+
+export interface SheetOrders {
+  /** When the Portal received this copy (ISO). */
+  updatedAt: string;
+  countDate: string;
+  delivery: string;
+  note: string;
+  notCounted: string;
+  saturday: boolean;
+  suppliers: SheetSupplierOrder[];
 }
 
 // ---------------------------------------------------------------- phase 2: Loyverse, recipes, stock

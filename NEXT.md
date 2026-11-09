@@ -1,5 +1,9 @@
 # To do next (agreed with Arsen, 8 Nov 2026)
 
+**Built 10 Nov (needs 4 steps from Arsen, see chat): the Portal Orders page shows the sheet's Today's Orders (option A).**
+New: supabase/sheet-orders.sql (run once), sheet-counts function (redeploy), apps-script/PortalOrders.gs (new file, run
+portalBridgeSetupOrdersTrigger once). The Portal no longer works out orders itself; Today and the Orders badge use the same copy.
+
 **REMIND ARSEN (he asked):** open questions on order rules,
 asked 8 Nov after reading the sheet's Rules, Suppliers, Bar, Kitchen, Weekly and Today's Orders tabs.
 1. Portal Orders page: mirror the sheet's Today's Orders (recommended, sheet = one place for rules),

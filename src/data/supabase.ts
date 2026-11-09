@@ -6,7 +6,7 @@
  * who can read and change what.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { AppData, CountItem, CountRow, Ingredient, ModifierRule, Order, Receipt, Recipe, RecipeChange, Rule, SalesReport, SalesRow, StockBook, Supplier, SyncRun, WasteRow } from '../types';
+import type { AppData, CountItem, CountRow, Ingredient, ModifierRule, Order, Receipt, Recipe, RecipeChange, Rule, SalesReport, SalesRow, SheetOrders, StockBook, Supplier, SyncRun, WasteRow } from '../types';
 import type { LyItem } from '../lib/importRecipes';
 import type { LiveSales } from '../types';
 import type { Auth, Store } from './store';
@@ -164,7 +164,7 @@ export function liveStore(isOwner: () => boolean, myName: () => string = () => '
     async load(): Promise<AppData> {
       const since = addDays(businessDate(), -HISTORY_DAYS);
       const page = (t: string, col: string, order?: string) => allRows(() => { const q = db().from(t).select('*').gte(col, since); return order ? q.order(order) : q; });
-      const [items, sups, rules, counts, sessions, orders, waste, settings, sales, book] = await Promise.all([
+      const [items, sups, rules, counts, sessions, orders, waste, settings, sales, book, mirror] = await Promise.all([
         allRows(() => db().from('count_items').select('*').order('sort')),
         allRows(() => db().from('suppliers').select('*').order('sort')),
         allRows(() => db().from('rules').select('*').order('sort')),
@@ -175,6 +175,8 @@ export function liveStore(isOwner: () => boolean, myName: () => string = () => '
         allRows(() => db().from('settings').select('*')),
         isOwner() ? allRows(() => db().from('sales_items').select('*')) : Promise.resolve([]),
         loadBook(),
+        // The sheet's Today's Orders. Missing table or nothing sent yet: the Orders page says so.
+        db().from('sheet_orders_now').select('data, updated_at').eq('id', 'current').maybeSingle().then((r: any) => r.data ?? null, () => null),
       ]);
       const set = Object.fromEntries((settings as any[]).map((s) => [s.key, s.value]));
       return {
@@ -191,6 +193,7 @@ export function liveStore(isOwner: () => boolean, myName: () => string = () => '
         salesPeriod: set.sales_period ?? null,
         lpoNext: Number(set.lpo_next ?? seedLpoNext),
         book,
+        sheetOrders: mirror ? { ...(mirror.data as Omit<SheetOrders, 'updatedAt'>), updatedAt: mirror.updated_at } : null,
       };
     },
     async saveCounts(rows, s) {

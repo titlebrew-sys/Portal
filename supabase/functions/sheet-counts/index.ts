@@ -31,6 +31,9 @@ type Delivery = {
 /** A day's final orders from the sheet, in count units (what staff count: L, g, pcs...). */
 type SheetOrders = { business_date: string; items: { order_item: string; count_qty: number }[]; partial?: boolean };
 
+/** A copy of the sheet's whole Today's Orders tab. The Portal's Orders page shows it as it is. */
+type SheetMirror = { countDate?: string; delivery?: string; note?: string; notCounted?: string; saturday?: boolean; suppliers: Record<string, unknown>[] };
+
 /** Same id every time for the same day and supplier, so re-sending replaces instead of adding. */
 async function stableId(text: string): Promise<string> {
   const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))).slice(0, 16);
@@ -251,7 +254,17 @@ Deno.serve(async (req) => {
     }
   }
 
+  // The sheet's Today's Orders, copied as it is (replaces the last copy)
+  const mirror: SheetMirror | null = (body as any).sheet_orders && Array.isArray((body as any).sheet_orders.suppliers) ? (body as any).sheet_orders : null;
+  let mirrorSaved = false;
+  if (mirror) {
+    const { error } = await db.from('sheet_orders_now').upsert({ id: 'current', location_id: LOCATION, data: mirror, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    if (error) errors.push(`Sheet orders: ${error.message}`);
+    else mirrorSaved = true;
+  }
+
   const parts = [`${saved} counts saved or changed`];
+  if (mirrorSaved) parts.push(`sheet orders copied (${mirror!.suppliers.length} suppliers)`);
   if (deliveriesSaved) parts.push(`${deliveriesSaved} deliveries`);
   if (ordersSaved) parts.push(`${ordersSaved} supplier orders`);
   if (unknownOrders.size) parts.push(`order items not matched: ${[...unknownOrders].join(', ')}`);
@@ -259,9 +272,11 @@ Deno.serve(async (req) => {
   if (unknown.size) parts.push(`names not matched: ${[...unknown].join(', ')}`);
   if (errors.length) parts.push(errors.join('; '));
   const ok = errors.length === 0;
+  // The 10-minute copy of Today's Orders alone is not logged when it works, so the Sync status line keeps showing real counts
+  if (ok && mirrorSaved && !batches.length && !sheetOrders.length && !deliveries.length) return Response.json({ ok, saved, waste: wasteSaved, orders: ordersSaved, deliveries: deliveriesSaved, sheetOrdersCopied: true, unknown: [], unknownOrders: [], errors }, { status: 200 });
   await db.from('sync_runs').insert({
     location_id: LOCATION, kind: 'sheet', finished_at: new Date().toISOString(), receipts: 0, ok, message: parts.join(' · '),
     details: { unknown: [...unknown], errors },
   });
-  return Response.json({ ok, saved, waste: wasteSaved, orders: ordersSaved, deliveries: deliveriesSaved, unknown: [...unknown], unknownOrders: [...unknownOrders], errors }, { status: ok ? 200 : 207 });
+  return Response.json({ ok, saved, waste: wasteSaved, orders: ordersSaved, deliveries: deliveriesSaved, sheetOrdersCopied: mirrorSaved, unknown: [...unknown], unknownOrders: [...unknownOrders], errors }, { status: ok ? 200 : 207 });
 });

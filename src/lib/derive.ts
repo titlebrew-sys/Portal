@@ -41,7 +41,10 @@ export function dropped(data: AppData, today: string) {
     .map((x) => ({ ...x, pct: Math.round((1 - x.now / x.was) * 100) }));
 }
 
-/** Suppliers with something suggested today that have not been sent yet. */
+/**
+ * Suppliers with something suggested today by the Portal's own rules. No screen uses this any more:
+ * orders come from the Google Sheet's Today's Orders (see sheetOrders.ts). Kept for its tests.
+ */
 export function dueToday(data: AppData, today: string): SupplierPlan[] {
   if (noOrdersOn(today)) return [];
   return plan(data, today).filter(

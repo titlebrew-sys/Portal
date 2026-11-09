@@ -73,6 +73,7 @@ export function demoData(today: string): AppData {
     salesPeriod: null,
     lpoNext: seedLpoNext,
     book: demoBook(),
+    sheetOrders: null,
   };
 }
 

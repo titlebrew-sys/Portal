@@ -1,6 +1,7 @@
 import { useApp } from '../ctx';
 import { Head, MobileWho, aed } from '../components';
-import { dropped, dueToday, expiring, lastWeekly, sessionOf, zeroStock } from '../lib/derive';
+import { dropped, expiring, lastWeekly, sessionOf, zeroStock } from '../lib/derive';
+import { itemsToOrder, sheetDue, sheetSent } from '../lib/sheetOrders';
 import { addDays, fmtDayMonth, fmtDubaiTime, fmtLongDate, fmtShortDate, greeting, isShift1Locked } from '../lib/time';
 import { fmtNum } from '../lib/ordering';
 import { periodInfo } from '../lib/csv';
@@ -8,14 +9,15 @@ import { useEffect, useMemo, useState } from 'react';
 import type { LiveSales } from '../types';
 import { dayTotals } from './SalesToday';
 import { useStockData } from '../lib/useStock';
+import { soldMoreThanCounted } from '../lib/stock';
 import { differenceRows } from './Differences';
 import { amt, countLabel, signed } from './stockParts';
 
 export function Today() {
   const { data, me, today, store } = useApp();
   const owner = me.role === 'owner';
-  const due = dueToday(data, today);
-  const sent = data.orders.filter((o) => o.businessDate === today && !(o.receivedBy ?? '').includes('(not ordered)'));
+  const due = sheetDue(data);
+  const sent = sheetSent(data);
   const exp = expiring(data, today);
   const zero = zeroStock(data, today);
   const drop = dropped(data, today);
@@ -71,17 +73,18 @@ export function Today() {
 
         <div className="panel">
           <div className="panel-h"><h2>Orders to send</h2><a href="#orders">Open</a></div>
-          <div className="stat">{due.length}<small>suppliers, {due.reduce((a, p) => a + p.lines.filter((l) => l.qty > 0).length, 0)} items</small></div>
+          <div className="stat">{due.length}<small>suppliers, {due.reduce((a, p) => a + itemsToOrder(p).length, 0)} items</small></div>
           <div className="rows">
             {due.map((p) => (
-              <div className="r" key={p.supplier.id}>
-                <div className="t"><b>{p.supplier.name}</b><span>{p.supplier.how}</span></div>
-                <span className="pill p-s1">Cutoff {p.supplier.cutoff}</span>
+              <div className="r" key={p.name}>
+                <div className="t"><b>{p.name}</b><span>{p.how}</span></div>
+                <span className="pill p-s1">Cutoff {data.suppliers.find((x) => x.name === p.name)?.cutoff ?? ''}</span>
               </div>
             ))}
             {sent.length > 0 && (
-              <div className="r"><div className="t"><b>Sent today</b><span>{sent.map((o) => data.suppliers.find((s) => s.id === o.supplierId)?.name).join(', ')}</span></div><span className="pill p-good">{sent.length}</span></div>
+              <div className="r"><div className="t"><b>Sent today</b><span>{sent.map((o) => o.name).join(', ')}</span></div><span className="pill p-good">{sent.length}</span></div>
             )}
+            {!data.sheetOrders && <div className="r"><div className="t"><span>Waiting for the first copy of Today's Orders from the sheet.</span></div></div>}
           </div>
         </div>
 
@@ -167,7 +170,7 @@ function DifferenceAlerts() {
         {!sd.loading && !over.length && <div className="r"><div className="t"><b>Counts match what was expected</b><span>Yesterday and today, within the limits</span></div><span className="pill p-good">Clear</span></div>}
         {over.slice(0, 6).map((r) => (
           <a key={r.ing.id} className="r" href="#differences" style={{ color: 'inherit', textDecoration: 'none' }}>
-            <div className="t"><b>{r.ing.name}</b><span>{countLabel(r.step.to)}: counted {amt(r.step.counted, r.ing.unit)}, expected {amt(r.step.expected, r.ing.unit)}</span></div>
+            <div className="t"><b>{r.ing.name}</b><span>{countLabel(r.step.to)}: counted {amt(r.step.counted, r.ing.unit)}, {soldMoreThanCounted(r.step.expected) > 0 ? `sales used ${amt(soldMoreThanCounted(r.step.expected), r.ing.unit)} more than was counted` : `expected ${amt(r.step.expected, r.ing.unit)}`}</span></div>
             <span className="pill p-bad">{signed(r.step.difference, r.ing.unit)}</span>
           </a>
         ))}

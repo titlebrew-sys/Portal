@@ -18,7 +18,7 @@ function read(): AppData | null {
     const d = JSON.parse(s) as AppData & { _day?: string };
     // Start fresh each new business day so the demo always shows "today".
     if (d._day !== businessDate()) return null;
-    return d.book ? d : { ...d, book: demoBook() };
+    return { ...d, book: d.book ?? demoBook(), sheetOrders: d.sheetOrders ?? null };
   } catch {
     return null;
   }

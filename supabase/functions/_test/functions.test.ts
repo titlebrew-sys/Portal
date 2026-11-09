@@ -198,3 +198,29 @@ Deno.test({ name: 'sheet-counts: staff-confirmed deliveries replace the assumpti
   assert(shop.message.startsWith('Bought from a shop · AED 48 · Ran out'), shop.message);
   assertEquals(tables.get('suppliers')!.some((s) => s.id === 'sup-shop'), true);
 });
+
+Deno.test({ name: "sheet-counts: Today's Orders is copied as it is, replaced on every send, and the copy alone is not logged", sanitizeOps: false, sanitizeResources: false }, async () => {
+  tables.clear();
+  tables.set('count_items', []);
+  installFetch(() => ({}));
+  const run = await loadFunction('../sheet-counts/index.ts', { BRIDGE_SECRET: 's3cret' });
+  const mirror: any = {
+    countDate: 'Mon 9 Nov', delivery: 'Tue 10 Nov', note: '', notCounted: '', saturday: false,
+    suppliers: [{ name: 'Matcha', how: 'WhatsApp group', status: '', done: '', message: 'Hello', toOrder: false,
+      rows: [{ item: 'Matcha', count: '199', unit: 'g', suggested: '0', change: '', final: 0, orderUnit: 'bag of 500g', notes: '', coming: 0 }] }],
+  };
+  const post = (m: any, secret = 's3cret') => run(new Request('http://x', { method: 'POST', headers: { 'x-bridge-secret': secret }, body: JSON.stringify({ batches: [], sheet_orders: m }) }));
+  const res = await (await post(mirror)).json();
+  assertEquals([res.ok, res.sheetOrdersCopied], [true, true]);
+  assertEquals(tables.get('sheet_orders_now')!.length, 1);
+  assertEquals(tables.get('sheet_orders_now')![0].data.suppliers[0].name, 'Matcha');
+  assertEquals(tables.get('sync_runs') ?? [], []);
+  // Sent again with a change: still one row, with the new content
+  mirror.suppliers[0].toOrder = true;
+  await post(mirror);
+  assertEquals(tables.get('sheet_orders_now')!.length, 1);
+  assertEquals(tables.get('sheet_orders_now')![0].data.suppliers[0].toOrder, true);
+  // Without the right secret nothing is accepted
+  assertEquals((await post({ ...mirror, suppliers: [] }, 'wrong')).status, 401);
+  assertEquals(tables.get('sheet_orders_now')![0].data.suppliers.length, 1);
+});
