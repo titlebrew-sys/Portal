@@ -3,14 +3,14 @@
  * Live recipes are data in Supabase, so changing catalog.ts alone does not change them.
  * The owner presses one button on the Recipes page; this works out what to save.
  */
-import type { ModifierRule, Recipe } from '../types';
+import type { Ingredient, ModifierRule, Recipe } from '../types';
 import {
   COFFEE_GRAMS, COLD_BREWS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, NITRO_PER_SERVING, START_MODIFIER_RULES, norm,
 } from './catalog';
 
 /** Ids of the starting rules this update adds or replaces. */
 const RULE_IDS = new Set([
-  'mod-extrashot-brazil', 'mod-extrashot-ethiopia', 'mod-extrashot-extrashotbrazil', 'mod-extrashot-extrashotethiopia', 'mod-beans-colombiafilter', 'mod-beans-ethiopiasidamofilter',
+  'mod-extrashot-brazil', 'mod-extrashot-ethiopia', 'mod-extrashot-extrashotbrazil', 'mod-extrashot-extrashotethiopia', 'mod-beans-ethiopiasidamofilter',
 ]);
 
 const has = (list: string[], name: string) => list.some((n) => norm(n) === norm(name));
@@ -44,4 +44,9 @@ export function updateRecipes(recipes: Recipe[], by: string): Recipe[] {
     if (changed) out.push({ ...r, lines, updatedBy: by, updatedAt: at });
   }
   return out;
+}
+
+/** Colombia (filter) beans are no longer stocked: hide the ingredient (history stays). */
+export function updateIngredients(existing: Ingredient[]): Ingredient[] {
+  return existing.filter((i) => i.id === 'bean-colombia-filter' && i.active).map((i) => ({ ...i, active: false }));
 }

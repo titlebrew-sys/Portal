@@ -14,7 +14,6 @@ export const START_INGREDIENTS: Ingredient[] = [
   // Beans: tracked separately (Loyverse has a single "Coffee" item)
   ing('bean-brazil', 'Brazil beans', 'g', 'bar-brazil-beans'),
   ing('bean-ethiopia', 'Ethiopia beans', 'g', 'bar-ethiopia-beans'),
-  ing('bean-colombia-filter', 'Colombia beans (filter)', 'g', 'bar-colombia-beans'),
   ing('bean-colombia-watermelon', 'Colombia beans (watermelon)', 'g', 'bar-watermelon'),
   ing('bean-sidamo', 'Sidamo beans', 'g', 'bar-sidamo'),
   // Milk and cream: counted in litres, used in ml
@@ -166,7 +165,7 @@ const MILKS: [string, string][] = [
   ['Low Fat', 'milk-low-fat'], ['Full Fat', 'milk-full-fat'], ['Lactose Free', 'milk-lactose-free'],
 ];
 const BEANS: [string, string][] = [
-  ['Brazil', 'bean-brazil'], ['Ethiopia', 'bean-ethiopia'], ['Colombia (Filter)', 'bean-colombia-filter'], ['Colombia (Watermelon)', 'bean-colombia-watermelon'],
+  ['Brazil', 'bean-brazil'], ['Ethiopia', 'bean-ethiopia'], ['Colombia (Watermelon)', 'bean-colombia-watermelon'],
   ['Ethiopia Sidamo (Filter)', 'bean-sidamo'],
 ];
 const CLASSIC = ['Espresso', 'Long Black', 'Cappuccino', 'Flat White', 'Latte', 'Spanish Latte', 'Hibiscus', 'Affogato', 'Ice Long Black',
