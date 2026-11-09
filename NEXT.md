@@ -17,6 +17,18 @@ Beverages 150 AED) and suggest items near reorder level; note when close to 10 c
 (1 free). Small fix: Suppliers tab, New Country Home cutoff typo "4p m".
 After rules: recipes, by asking Arsen questions item by item.
 
+**Requested 9 Nov: Delayed / Cancelled buttons in Deliveries (APP, Shift 2, per supplier).**
+When an ordered delivery did not come: "Delayed" (expected next day, the usual case) or
+"Delivery cancelled" (e.g. vehicle broke down, stop expecting it). Things to settle and build:
+- Delayed: the supplier's items move to tomorrow's Deliveries list to confirm; the Portal must not
+  count them as arrived today (today the sheet's orders are taken as delivered next morning).
+- Cancelled: the Portal removes the expected arrival; tomorrow's order should suggest those items again.
+- Open questions for Arsen: who may press them (any staff, or only managers / "Can Send Orders")?
+  Part came and part delayed? Delayed more than once? Should tomorrow's Today's Orders count
+  delayed items as already coming, so they are not ordered twice?
+Touches: live Deliveries.gs and Page.html (copy live first), PortalBridge.gs payload, sheet-counts
+function, Portal Deliveries page.
+
 1. **Order rules: one source.** The Google Sheet's Rules tab (when to order what, per supplier)
    does not match the Portal's own copy of the rules. The Portal should read the suppliers, rules
    and items from the Google Sheet, so the Orders page suggests the same as Today's Orders.
