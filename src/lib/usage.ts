@@ -3,7 +3,7 @@
  * millilitres and pieces of ingredients, each with a plain reason that can be shown.
  */
 import type { Ingredient, ModifierEffect, ModifierRule, Receipt, Recipe, RecipeLine, SaleLine, SaleModifier } from '../types';
-import { SIZE_COLD_DRINK, norm } from './catalog';
+import { SIZE_COLD_DRINK, SIZE_EXTRAS, norm } from './catalog';
 
 export interface Use {
   ingredientId: string;
@@ -149,7 +149,10 @@ export function lineUses(book: RecipeBook, line: Pick<SaleLine, 'itemId' | 'item
     const p = pack.find((x) => x.ingredientId === s.from);
     if (p) p.ingredientId = s.to;
   }
-  for (const p of pack) ctx.uses.push({ ingredientId: p.ingredientId, qty: p.qty, why: 'Take-away' });
+  for (const p of pack) {
+    const id = p.role === 'milk' ? roleIngredient(ctx, recipe, 'milk') : p.ingredientId;
+    ctx.uses.push({ ingredientId: id, qty: p.qty, why: p.role === 'milk' ? 'Take-away, larger cup: more milk' : 'Take-away' });
+  }
   return { uses: ctx.uses, noRecipe: false };
 }
 
@@ -170,6 +173,7 @@ export function receiptUsage(book: RecipeBook, receipts: Receipt[]): LineUsage[]
         uses: uses.map((u) => ({ ...u, qty: u.qty * l.qty * sign, why: sign < 0 ? `Refund: ${u.why}` : u.why })),
       };
     });
+    addSizeExtras(r, rows);
     // "+ Size cold drink" on take-away: one 12oz clear cup becomes a 16oz clear cup per size item.
     if (takeaway) {
       let sizes = r.lines.filter((l) => norm(l.itemName) === SIZE_COLD_DRINK).reduce((a, l) => a + l.qty, 0);
@@ -185,6 +189,23 @@ export function receiptUsage(book: RecipeBook, receipts: Receipt[]): LineUsage[]
     out.push(...rows);
   }
   return resolveSpread(out);
+}
+
+/** "+ Size cold drink": the iced drink on the receipt gets more milk, coffee, matcha, tea or syrup. */
+function addSizeExtras(r: Receipt, rows: LineUsage[]) {
+  let sizes = r.lines.filter((l) => norm(l.itemName) === SIZE_COLD_DRINK).reduce((a, l) => a + l.qty, 0);
+  for (const row of rows) {
+    const x = SIZE_EXTRAS.find((e) => e.match.test(norm(row.item)));
+    if (!x || sizes <= 0 || row.refund) continue;
+    const n = Math.min(sizes, row.qty) / row.qty; // per drink in this line
+    sizes -= Math.min(sizes, row.qty);
+    const sign = 1;
+    const per = (id: string | undefined, q: number, why: string) => { if (id && q) row.uses.push({ ingredientId: id, qty: q * n * row.qty * sign, why }); };
+    const find = (prefix: string) => row.uses.find((u) => u.ingredientId.startsWith(prefix))?.ingredientId;
+    const why = '+ Size cold drink';
+    if (x.tea) per(find('tea-'), x.tea, `${why}: one more serving`);
+    if (x.pumps) per(find('syrup-'), x.pumps * 10, `${why}: 2 more pumps of sweetener`);
+  }
 }
 
 /**

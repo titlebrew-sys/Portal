@@ -112,9 +112,10 @@ function, Portal Deliveries page.
 
 **Recipes: Arsen said GO (9 Nov). Step 1 built, waiting for Arsen to test:** coffee 18 g (espresso) and 20 g
 (V60, Ice V60, AeroPress), Ethiopia default for Espresso, Long Black, Ice Long Black, filter; Extra Shot (Ethiopia/Brazil)
-18 g; Colombia (Filter) rule; nitro 0.33 cartridge. Live data changes only when the owner presses
-"Update now" on the Portal Recipes page (src/lib/recipeUpdate.ts). Still to build, in order: 2) milk amounts
-(214 / 322 ml, take-away rules, + Size cold drink, Spanish Latte condensed milk 25/35 g), 3) retail bags
+18 g; Colombia (Filter) removed (now Ethiopia Sidamo (Filter) = Sidamo beans); nitro 0.33 cartridge. Live data changes only when the owner presses
+"Update now" on the Portal Recipes page (src/lib/recipeUpdate.ts). Step 2 built (milk 214 ml, take-away Latte family and Cappuccino Large 322 ml, Flat White Large 214,
++ Size cold drink via the Matcha or Coffee choice, Spanish Latte condensed 25/35 g; same Update now button;
+Matcha Grey and Babyccino keep their own milk). Still to build, in order: 3) retail bags
 (4+ same origin on a receipt come from counted stock), 4) roast detection (+4 kg between counts),
 5) cold brew 180 g question in the APP (needs the LIVE Page.html and Bar count code from Arsen),
 6) list of choices with no rule (exists), "sold more than was counted" text.

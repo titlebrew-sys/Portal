@@ -212,7 +212,7 @@ export interface Recipe {
   itemName: string;
   lines: RecipeLine[];
   /** Cups, lids and straws used only for take-away. */
-  takeaway: { ingredientId: string; qty: number }[];
+  takeaway: { ingredientId: string; qty: number; role?: LineRole }[];
   /** Modifier groups to ignore on this item (bundles ignore the Classic Coffee choice). */
   ignoreGroups: string[];
   note: string | null;

@@ -3,6 +3,7 @@
  * Runs once (and later only for new items). Existing recipes the owner edited are kept.
  */
 import type { CountItem, Ingredient, Recipe, RecipeLine } from '../types';
+import { updateRecipes } from './recipeUpdate';
 import {
   BEAN_BAGS, BUNDLES, COFFEE_DRINKS, COFFEE_GRAMS, COLD_BREWS, COLD_BREW_GRAMS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, FIXED_RECIPES, LOYVERSE_INGREDIENTS, SET_AMOUNTS, TAKEAWAY, norm,
 } from './catalog';
@@ -125,6 +126,8 @@ export function importRecipes(items: LyItem[], ingredients: Ingredient[], by = '
       ignoreGroups, note, updatedBy: by, updatedAt: at,
     });
   }
+  const changed = new Map(updateRecipes(recipes, by).map((r) => [r.id, r]));
+  recipes.forEach((r, i) => { recipes[i] = changed.get(r.id) ?? r; });
   if (missing.size) notes.push(`These Loyverse ingredients have no match yet, so they were left out: ${[...missing].join(', ')}.`);
   const named = new Set(items.map((i) => norm(i.name)));
   const notFound = [...Object.keys(FIXED_RECIPES), ...COLD_BREWS, ...BUNDLES.map((b) => b[0]), ...BEAN_BAGS].filter((n) => !named.has(norm(n)));

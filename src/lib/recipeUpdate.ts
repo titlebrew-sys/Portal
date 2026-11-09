@@ -5,12 +5,14 @@
  */
 import type { Ingredient, ModifierRule, Recipe } from '../types';
 import {
-  COFFEE_GRAMS, COLD_BREWS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, NITRO_PER_SERVING, START_MODIFIER_RULES, norm,
+  COFFEE_GRAMS, COLD_BREWS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, MILK_EXCEPTIONS, MILK_LARGE, MILK_ML, NITRO_PER_SERVING, SPANISH_CONDENSED,
+  SPANISH_CONDENSED_TAKEAWAY, START_MODIFIER_RULES, isHotLatte, norm,
 } from './catalog';
 
 /** Ids of the starting rules this update adds or replaces. */
 const RULE_IDS = new Set([
   'mod-extrashot-brazil', 'mod-extrashot-ethiopia', 'mod-extrashot-extrashotbrazil', 'mod-extrashot-extrashotethiopia', 'mod-beans-ethiopiasidamofilter',
+  'mod-any-cappucinolarge', 'mod-any-flatwhitelarge8oz', 'mod-matchaorcoffee-coffee', 'mod-matchaorcoffee-matcha',
 ]);
 
 const has = (list: string[], name: string) => list.some((n) => norm(n) === norm(name));
@@ -41,7 +43,31 @@ export function updateRecipes(recipes: Recipe[], by: string): Recipe[] {
       lines = [...lines.filter((l) => l.ingredientId !== 'nitro-cartridge'), { ingredientId: 'nitro-cartridge', qty: NITRO_PER_SERVING }];
       changed = true;
     }
-    if (changed) out.push({ ...r, lines, updatedBy: by, updatedAt: at });
+    // Milk: 214 ml in every cup, except the special ones
+    if (!has(MILK_EXCEPTIONS, r.itemName))
+      lines = lines.map((l) => {
+        if (l.role !== 'milk' || l.qty === MILK_ML) return l;
+        changed = true;
+        return { ...l, qty: MILK_ML };
+      });
+    let takeaway = r.takeaway;
+    // Hot lattes: 322 ml take-away, so 108 ml more than in the cup
+    if (isHotLatte(r.itemName) && lines.some((l) => l.role === 'milk') && !takeaway.some((p) => p.role === 'milk')) {
+      takeaway = [...takeaway, { ingredientId: lines.find((l) => l.role === 'milk')!.ingredientId ?? 'milk-full-fat', qty: MILK_LARGE - MILK_ML, role: 'milk' }];
+      changed = true;
+    }
+    // Spanish Latte condensed milk: 25 g dine-in, 35 g take-away
+    if (norm(r.itemName) === norm('Spanish Latte')) {
+      if (lines.some((l) => l.ingredientId === 'condensed-milk' && l.qty !== SPANISH_CONDENSED)) {
+        lines = lines.map((l) => (l.ingredientId === 'condensed-milk' ? { ...l, qty: SPANISH_CONDENSED } : l));
+        changed = true;
+      }
+      if (!takeaway.some((p) => p.ingredientId === 'condensed-milk')) {
+        takeaway = [...takeaway, { ingredientId: 'condensed-milk', qty: SPANISH_CONDENSED_TAKEAWAY - SPANISH_CONDENSED }];
+        changed = true;
+      }
+    }
+    if (changed) out.push({ ...r, lines, takeaway, updatedBy: by, updatedAt: at });
   }
   return out;
 }

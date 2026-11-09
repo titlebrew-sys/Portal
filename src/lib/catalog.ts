@@ -155,6 +155,25 @@ export const SIZE_COLD_DRINK = norm('+ Size cold drink');
 
 // ---------------------------------------------------------------- modifier rules
 
+/** Milk in one cup: every dine-in cup 214 ml; take-away Latte family and Cappuccino Large 322 ml. */
+export const MILK_ML = 214;
+export const MILK_LARGE = 322;
+/** Milk drinks that keep their own milk amount (not 214). */
+export const MILK_EXCEPTIONS = ['Matcha Grey', 'Babyccino'];
+/** Spanish Latte condensed milk: dine-in 25 g, take-away 35 g. */
+export const SPANISH_CONDENSED = 25;
+export const SPANISH_CONDENSED_TAKEAWAY = 35;
+/** Hot lattes (all kinds, incl. Latte Macchiato) are 322 ml take-away. Iced ones stay 214. */
+export const isHotLatte = (name: string) => /latte/i.test(name) && !/^ice/i.test(name.trim());
+
+/**
+ * "+ Size cold drink" (16oz clear cup): what the iced drink on the same receipt uses on top.
+ * Iced coffee and matcha get theirs from the "Matcha or Coffee" choice on the size item (rules below).
+ */
+export const SIZE_EXTRAS: { match: RegExp; extraMilk?: number; coffee?: number; matcha?: number; tea?: number; pumps?: number }[] = [
+  { match: /^shakenicetea/, tea: 4, pumps: 2 },
+];
+
 const now = () => new Date().toISOString();
 const rule = (group: string, option: string, effects: ModifierRule['effects'], note: string | null = null): ModifierRule => ({
   id: `mod-${norm(group) || 'any'}-${norm(option) || 'any'}`, group, option, effects, note, updatedBy: 'Starting rules', updatedAt: now(),
@@ -185,10 +204,10 @@ export const START_MODIFIER_RULES: ModifierRule[] = [
   rule('Syrup', 'Extra Pump (1pmp)', [{ type: 'spread', qty: 10, among: ['syrup-salted-caramel', 'syrup-hazelnut', 'syrup-vanilla'] }],
     'Syrup not known: 10 ml shared across the syrups in line with how often each is chosen.'),
   rule('Syrup', 'Chocolate Powder (>5g)', [{ type: 'add', qty: 15, ingredientId: 'chocolate-powder' }]),
-  rule('*', 'Cappucino Large', [{ type: 'add', qty: 50, role: 'milk' }, { type: 'swapCup', from: 'cup-8oz', to: 'cup-12oz-paper' }]),
+  rule('*', 'Cappucino Large', [{ type: 'add', qty: MILK_LARGE - MILK_ML, role: 'milk' }, { type: 'swapCup', from: 'cup-8oz', to: 'cup-12oz-paper' }]),
   rule('*', 'RAF Large', [{ type: 'add', qty: 50, role: 'milk' }, { type: 'swapCup', from: 'cup-8oz', to: 'cup-12oz-paper' }]),
   rule('*', 'Toffee Coffee Large', [{ type: 'add', qty: 50, role: 'milk' }, { type: 'swapCup', from: 'cup-8oz', to: 'cup-12oz-paper' }]),
-  rule('*', 'Flat White Large 8oz', [{ type: 'add', qty: 50, role: 'milk' }, { type: 'swapCup', from: 'cup-6oz', to: 'cup-8oz' }, { type: 'swapCup', from: 'lid-black', to: 'lid-flip' }]),
+  rule('*', 'Flat White Large 8oz', [{ type: 'swapCup', from: 'cup-6oz', to: 'cup-8oz' }, { type: 'swapCup', from: 'lid-black', to: 'lid-flip' }]),
   rule('Extra Pump RAF/TOFFEE', '1', [{ type: 'add', qty: 10, byItem: { raf: 'syrup-vanilla', toffee: 'syrup-hazelnut' } }]),
   rule('Extra Pump RAF/TOFFEE', '2', [{ type: 'add', qty: 20, byItem: { raf: 'syrup-vanilla', toffee: 'syrup-hazelnut' } }]),
   rule('Ice Tea Sweetner', '*', [{ type: 'add', qty: 25, byItem: { peach: 'syrup-peach', strawberry: 'syrup-strawberry' } }]),
@@ -197,8 +216,8 @@ export const START_MODIFIER_RULES: ModifierRule[] = [
   rule('Croissant', 'Raisin/Cinnamon Swirl', [{ type: 'add', qty: 1, ingredientId: 'kit-cinnamon-swirl' }]),
   rule('Croissant', 'Plain', [{ type: 'add', qty: 1, ingredientId: 'kit-plain-croissant' }]),
   ...CLASSIC.map((o) => rule('Classic Coffee', o, [{ type: 'recipeOf' }])),
-  rule('Matcha or Coffee', 'Coffee', [{ type: 'add', qty: 18, role: 'coffee' }, { type: 'add', qty: 100, role: 'milk' }]),
-  rule('Matcha or Coffee', 'Matcha', [{ type: 'add', qty: 3, ingredientId: 'matcha' }, { type: 'add', qty: 100, role: 'milk' }]),
+  rule('Matcha or Coffee', 'Coffee', [{ type: 'add', qty: 18, role: 'coffee' }, { type: 'add', qty: 300 - MILK_ML, role: 'milk' }]),
+  rule('Matcha or Coffee', 'Matcha', [{ type: 'add', qty: 3, ingredientId: 'matcha' }, { type: 'add', qty: 312 - MILK_ML, role: 'milk' }]),
 ];
 
 // ---------------------------------------------------------------- recipe corrections from Rimma
