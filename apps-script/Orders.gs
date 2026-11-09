@@ -118,8 +118,26 @@ function orBlockData_(sh, b, sups, done) {
     message: b.msg ? String(sh.getRange(b.msg, 2).getDisplayValue()) : '',
     check: b.check ? String(sh.getRange(b.check, 2).getDisplayValue()) : '',
     lpo: b.lpo ? String(sh.getRange(b.lpo, 2).getDisplayValue()) : '',
+    lastLpo: kind === 'bakery' ? orLastLpo_(sh, b) : null,
     done: done[b.name] || ''
   };
+}
+
+/* ---------------- LPO number (The Bakery) ---------------- */
+
+/**
+ * The last LPO number used and when. The "LPO Number" row is found by its label (it moves when
+ * items change): column B holds the number, column C the note "LPO N last used on <date>".
+ * A copy is kept in Script Properties in case the row is rebuilt.
+ */
+function orLastLpo_(sh, b) {
+  var note = b.lpo ? String(sh.getRange(b.lpo, 3).getDisplayValue()) : '';
+  var m = note.match(/LPO\s+(\d+)\s+last used on\s+([^.]+)/i);
+  if (m) return { no: Number(m[1]), on: m[2].trim() };
+  var saved = PropertiesService.getScriptProperties().getProperty('tb_last_lpo');
+  if (saved) { try { return JSON.parse(saved); } catch (e) { /* ignore */ } }
+  var n = b.lpo ? Number(sh.getRange(b.lpo, 2).getValue()) : 0;
+  return n > 0 ? { no: n, on: '' } : null;
 }
 
 /* ---------------- Called by the app ---------------- */
@@ -162,8 +180,8 @@ function spSetChange(token, row, value) {
   return { ok: true, supplier: orBlockData_(sh, b, orSuppliers_(), orDoneToday_()) };
 }
 
-/** Gmail draft for an email supplier (The Bakery with the LPO attached). */
-function spOrderDraft(token, supplier) {
+/** Gmail draft for an email supplier (The Bakery with the LPO attached, using the number typed in the app). */
+function spOrderDraft(token, supplier, newLpo) {
   var name = spWho(token);
   if (!name) return { expired: true };
   if (!orCanOrder(name)) return { ok: false, msg: 'Not allowed.' };
@@ -176,7 +194,17 @@ function spOrderDraft(token, supplier) {
   var extra = '';
   try {
     if (data.kind === 'bakery') {
+      var typed = Number(String(newLpo === undefined || newLpo === null ? '' : newLpo).trim());
+      var last = orLastLpo_(sh, b);
+      if (!(typed > 0) || Math.round(typed) !== typed) return { ok: false, msg: 'Type the new LPO number.' };
+      if (last && typed <= last.no) return { ok: false, msg: 'The new LPO number must be higher than ' + last.no + '.' };
+      if (!b.lpo) return { ok: false, msg: 'The LPO Number row is missing on Today\'s Orders.' };
+      // Rules C2 reads this cell, and draftBakeryEmail uses Rules C2 for the LPO and the file name
+      sh.getRange(b.lpo, 2).setValue(typed);
+      SpreadsheetApp.flush();
       var lpoNo = draftBakeryEmail();
+      if (Number(lpoNo) !== typed) return { ok: false, msg: 'The LPO came out as ' + lpoNo + ', not ' + typed + '. Check that Rules C2 reads the LPO Number row. The draft was made, delete it in Gmail.' };
+      PropertiesService.getScriptProperties().setProperty('tb_last_lpo', JSON.stringify({ no: typed, on: Utilities.formatDate(new Date(), TZ, 'EEE d MMM') }));
       extra = ' with LPO ' + lpoNo;
       if (b.lpo) {
         sh.getRange(b.lpo, 3).setValue('LPO ' + lpoNo + ' last used on ' +

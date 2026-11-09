@@ -8,6 +8,8 @@ The live versions of these files are in the Apps Script project of the Title Bre
   Also the manager-only sheet menu "Portal > Send to Portal now" (portalBridgeAddMenu, called from
   onOpen in Code.gs; Script Property PORTAL_SEND_EMAIL = the manager's Google account).
 - `Deliveries.gs`: same as live (copied 9 Nov 2026).
+- `Orders.gs`: live version (9 Nov) plus the LPO number fix: shows the last LPO, writes the typed
+  number into the LPO Number row (found by label), then makes the draft. Paste over the live file.
 - `Page.html`: OLDER than the live version. They were changed further in
   the Claude chat (expiry handling after deliveries, manager PIN, Done screens, search box).
   Do not paste these over the live files.
