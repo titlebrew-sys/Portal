@@ -17,6 +17,12 @@ Beverages 150 AED) and suggest items near reorder level; note when close to 10 c
 (1 free). Small fix: Suppliers tab, New Country Home cutoff typo "4p m".
 After rules: recipes, by asking Arsen questions item by item.
 
+**Bug 9 Nov: LPO number does not change in the LPO file or in its file name (APP, The Bakery).**
+Likely cause: the app writes the new LPO number to Today's Orders B33 (per the Claude chat update), but
+the "LPO Number" row is row 40 on 8 Nov, and B33 is the Choco Balls count; rows move as the script
+rebuilds the tab. Also check SpreadsheetApp.flush() before the PDF export. Need from Arsen: live
+Orders.gs, draftBakeryEmail from Code.gs, the formula in Rules C2.
+
 **Requested 9 Nov: order by email from the staff member's email (APP, Place Order for Tomorrow).**
 Today the Gmail draft (Almarai, The Bakery) goes to the sheet owner's Gmail, because the web app runs
 as the owner. Asked Arsen: A) draft/email in the staff member's own Gmail (needs each staff to sign
