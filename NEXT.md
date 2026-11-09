@@ -16,6 +16,19 @@ Ideas offered: warn when an order is under free delivery / minimum (L's Boutique
 Beverages 150 AED) and suggest items near reorder level; note when close to 10 cases of coconut milk
 (1 free). Small fix: Suppliers tab, New Country Home cutoff typo "4p m".
 After rules: recipes, by asking Arsen questions item by item (Arsen: later).
+**Recipes: Arsen's answers so far (9 Nov, do not build until he says so):**
+- Espresso-based coffee: 18 g (was 22 g). Not filter coffee. List of drinks sent to Arsen to confirm.
+- Filter (V60, Ice V60, AeroPress): 20 g; default beans Ethiopia (not Colombia) unless chosen.
+- Extra Shot modifier: 18 g.
+- Default beans: Brazil, but Americano, Ice Americano and Espresso default to Ethiopia (alternative
+  Brazil via the modifier).
+- Cold brew is made in batches: 180 g Ethiopia makes about 2.7 L; one serving is about 330 ml
+  (so about 22 g a serving). Nitro cold brew: the same 330 ml cold brew plus nitrogen; one cartridge
+  makes 1 L of nitro cold brew (about 0.33 cartridge a serving).
+- Retail coffee bags: the menu sells 250 g bags (from the shop shelf). For 1 kg or more, the customer
+  is charged 4 x 250 g but gets one bigger bag filled from the counted bean stock, not from the shelf.
+- Milk: regular milk drinks 214 ml; large (takeaway large, 12oz cup) 322 ml, like a takeaway latte.
+  Dine-in cups have set sizes. Questions open (see chat 9 Nov).
 Recipes job ideas: a list of Loyverse choices (modifiers) the Portal has no rule for, so names like
 "Ethiopia Sidamo (Filter)" (9 Nov: fell back to Colombia filter beans) are caught early; clearer text
 when expected stock is below zero ("sold more than was counted").
