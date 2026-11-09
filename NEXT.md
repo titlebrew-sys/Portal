@@ -17,6 +17,12 @@ Beverages 150 AED) and suggest items near reorder level; note when close to 10 c
 (1 free). Small fix: Suppliers tab, New Country Home cutoff typo "4p m".
 After rules: recipes, by asking Arsen questions item by item.
 
+**Requested 9 Nov: order by email from the staff member's email (APP, Place Order for Tomorrow).**
+Today the Gmail draft (Almarai, The Bakery) goes to the sheet owner's Gmail, because the web app runs
+as the owner. Asked Arsen: A) draft/email in the staff member's own Gmail (needs each staff to sign
+in with Google), B) send from Title Brew with the staff member in copy, C) send directly from Title
+Brew with the staff name, D) other. Also: staff emails (Staff tab column?), only email suppliers?
+
 **Requested 9 Nov: Delayed / Cancelled buttons in Deliveries (APP, Shift 2, per supplier).**
 When an ordered delivery did not come: "Delayed" (expected next day, the usual case) or
 "Delivery cancelled" (e.g. vehicle broke down, stop expecting it). Things to settle and build:
