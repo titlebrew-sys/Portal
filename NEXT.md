@@ -54,8 +54,10 @@ After rules: recipes, by asking Arsen questions item by item (Arsen: later).
     2 more pumps of sweetener; iced coffee drinks 300 ml milk + one more double espresso.
   - Flat White Large take-away: 214 ml milk.
   - Spanish Latte condensed milk: dine-in 25 g, take-away 35 g.
-  - Retail bags: options offered (A separate "(one bag)" items in Loyverse, recommended; B variant;
-    C guess by quantity; modifier). Waiting for Arsen's choice.
+  - Retail bags (decided): 4 or more 250 g bags of the same origin on one receipt (1 kg or more)
+    come from the counted shop stock of that origin; fewer come from the shelf (no stock use).
+  - Roast (decided): a bean count that goes up by more than 4 kg since the last count is taken as
+    a new roast batch added to stock (about once a week). Smaller increases stay differences.
 Recipes job ideas: a list of Loyverse choices (modifiers) the Portal has no rule for, so names like
 "Ethiopia Sidamo (Filter)" (9 Nov: fell back to Colombia filter beans) are caught early; clearer text
 when expected stock is below zero ("sold more than was counted").
