@@ -10,6 +10,15 @@ asked 8 Nov after reading the sheet's Rules, Suppliers, Bar, Kitchen, Weekly and
 4. Rules column K (count units per order unit) is 1 for: tonic (cans/case), orange juice (btls/case),
    matcha (g/bag), tortilla chips (packs/carton, note says 4), Hotpack items (per carton/set),
    Dupak cups (count in sleeves, order in pcs). The Portal needs these to know how much arrived.
+   ANSWERS 9 Nov: 2) don't worry about suppliers of untracked items. 3) matcha is ordered as one
+   500 g bag, delivered as 2 x 250 g. 4) packs: tonic 24 cans/case (330 ml each), OJ 12 x 1 L,
+   matcha 500 g/bag, tortilla 4 packs/carton, carriers 6 sleeves/carton (50 each, 300), napkins 20
+   packets/carton, large box 120, small box 150, paper bags 250/carton, straws 40 packets/carton
+   (250 straws each), maxi roll 6 rolls/set, cups 25 per sleeve except 12oz PET 50 and 12oz paper
+   20. Arsen to type these into Rules column K. Open: cutlery, paper cookies bag, Dupak order unit
+   (sleeves vs pcs). 5) no rule change: desserts held to order together (free delivery), soy milk
+   cheaper from the shop (suggested: set soy to TRACK; idea: "below free delivery" note).
+   1) explained again in simpler words; waiting for A (Portal shows the sheet's orders) or B.
 5. Overrides on 8 Nov (frozen chocolate croissant: rule orders 20 at 5 or less; soy milk: top up to
    12 at 2 or less): change the rules?
 Ideas offered: warn when an order is under free delivery / minimum (L's Boutique 250 AED, Global
