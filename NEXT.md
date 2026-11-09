@@ -15,19 +15,21 @@ asked 8 Nov after reading the sheet's Rules, Suppliers, Bar, Kitchen, Weekly and
 Ideas offered: warn when an order is under free delivery / minimum (L's Boutique 250 AED, Global
 Beverages 150 AED) and suggest items near reorder level; note when close to 10 cases of coconut milk
 (1 free). Small fix: Suppliers tab, New Country Home cutoff typo "4p m".
-After rules: recipes, by asking Arsen questions item by item.
+After rules: recipes, by asking Arsen questions item by item (Arsen: later).
 
 **Bug 9 Nov: LPO number does not change in the LPO file or in its file name (APP, The Bakery).**
-Likely cause: the app writes the new LPO number to Today's Orders B33 (per the Claude chat update), but
-the "LPO Number" row is row 40 on 8 Nov, and B33 is the Choco Balls count; rows move as the script
-rebuilds the tab. Also check SpreadsheetApp.flush() before the PDF export. Need from Arsen: live
-Orders.gs, draftBakeryEmail from Code.gs, the formula in Rules C2.
+Cause found 9 Nov: Rules C2 = 'Today''s Orders'!B33, but the LPO Number row moved (row 40 on 8 Nov).
+draftBakeryEmail reads Rules C2 for the file name and LPO. Fix given: Rules C2 =
+INDEX('Today''s Orders'!B:B, MATCH("LPO Number*", 'Today''s Orders'!A:A, 0)). Waiting for Arsen to
+confirm. The live Orders.gs he pasted has no LPO number box (evening update missing?): asked.
 
 **Requested 9 Nov: order by email from the staff member's email (APP, Place Order for Tomorrow).**
 Today the Gmail draft (Almarai, The Bakery) goes to the sheet owner's Gmail, because the web app runs
 as the owner. Asked Arsen: A) draft/email in the staff member's own Gmail (needs each staff to sign
 in with Google), B) send from Title Brew with the staff member in copy, C) send directly from Title
-Brew with the staff name, D) other. Also: staff emails (Staff tab column?), only email suppliers?
+Brew with the staff name, D) other. Arsen chose A, also for WhatsApp (her own WhatsApp: already so).
+Proposed: "Open email" = mailto link on the phone (her own mail app, To/Subject/body filled; no need to
+store her email). The Bakery: "Download LPO" + "Open email", she attaches the file. Waiting for OK.
 
 **Requested 9 Nov: Delayed / Cancelled buttons in Deliveries (APP, Shift 2, per supplier).**
 When an ordered delivery did not come: "Delayed" (expected next day, the usual case) or
@@ -35,6 +37,8 @@ When an ordered delivery did not come: "Delayed" (expected next day, the usual c
 - Delayed: the supplier's items move to tomorrow's Deliveries list to confirm; the Portal must not
   count them as arrived today (today the sheet's orders are taken as delivered next morning).
 - Cancelled: the Portal removes the expected arrival; tomorrow's order should suggest those items again.
+- Arsen 9 Nov: Delayed must still allow confirming the same day (last-minute delivery before
+  closing). Delayed = not here yet, still expected; unconfirmed at closing moves to tomorrow.
 - Open questions for Arsen: who may press them (any staff, or only managers / "Can Send Orders")?
   Part came and part delayed? Delayed more than once? Should tomorrow's Today's Orders count
   delayed items as already coming, so they are not ordered twice?
