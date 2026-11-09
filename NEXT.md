@@ -19,6 +19,11 @@ asked 8 Nov after reading the sheet's Rules, Suppliers, Bar, Kitchen, Weekly and
    (sleeves vs pcs). 5) no rule change: desserts held to order together (free delivery), soy milk
    cheaper from the shop (suggested: set soy to TRACK; idea: "below free delivery" note).
    1) explained again in simpler words; waiting for A (Portal shows the sheet's orders) or B.
+   ANSWERS 9 Nov (later): 1) A: the Portal Orders page shows the sheet's Today's Orders.
+   Cutlery: 500 sets per carton. Square Bottom Brown Paper Bag 500pcs: 500 per carton. Paper Cookies
+   Bag 15x15 1000pcs (white): 1000 per carton. Dupak cups: keep ordering in pcs (count in sleeves, so
+   the Portal converts: 25 per sleeve, 12oz PET 50, 12oz paper 20). Soy milk TRACK: Arsen did not
+   understand, explained in simpler words, waiting for his answer.
 5. Overrides on 8 Nov (frozen chocolate croissant: rule orders 20 at 5 or less; soy milk: top up to
    12 at 2 or less): change the rules?
 Ideas offered: warn when an order is under free delivery / minimum (L's Boutique 250 AED, Global
