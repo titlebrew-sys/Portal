@@ -152,6 +152,12 @@ export function usedFor(ing: Ingredient, inp: StockInputs, from: string, to: str
 
 const sum = (xs: { qty: number }[]) => r3(xs.reduce((a, x) => a + x.qty, 0));
 
+/** True when the count is lower than expected, so stock is missing (any amount that shows as below zero). */
+export const isMissing = (difference: number): boolean => difference <= -0.05;
+
+/** How much more sales used than was counted, when the expected amount is below zero (otherwise 0). */
+export const soldMoreThanCounted = (expected: number | null): number => (expected !== null && expected < 0 ? r3(-expected) : 0);
+
 export function isOver(ing: Ingredient, difference: number, expected: number, counted: number): boolean {
   if (ing.unit === 'pcs' || ing.limitPct <= 0) return Math.abs(difference) > 0.01;
   return Math.abs(difference) > (ing.limitPct / 100) * Math.max(Math.abs(expected), Math.abs(counted), 1);

@@ -3,7 +3,7 @@ import { useApp } from '../ctx';
 import { Head, MobileWho } from '../components';
 import type { Ingredient } from '../types';
 import { addDays, fmtShortDate } from '../lib/time';
-import { currentLevel, hasCount, steps, usedFor } from '../lib/stock';
+import { currentLevel, hasCount, isMissing, soldMoreThanCounted, steps, usedFor } from '../lib/stock';
 import { dayEnd, dayStart, useStockData } from '../lib/useStock';
 import { DateRange, StepCard, Tap, UsedList, amt, countLabel, signed } from './stockParts';
 
@@ -60,9 +60,9 @@ export function Stock() {
               {rows.map(({ ing, lvl, usedTotal }) => (
                 <tr key={ing.id} className="clickable" onClick={() => setOpen(ing.id)}>
                   <td>{ing.name}{!hasCount(ing) && <span className="why">{ing.note ?? 'Not counted'}</span>}</td>
-                  <td className="n">{lvl.expectedNow === null ? '–' : amt(lvl.expectedNow, ing.unit)}</td>
+                  <td className="n">{lvl.expectedNow === null ? '–' : lvl.expectedNow < 0 ? <>{amt(0, ing.unit)}<span className="why">Sold {amt(soldMoreThanCounted(lvl.expectedNow), ing.unit)} more than was counted</span></> : amt(lvl.expectedNow, ing.unit)}</td>
                   <td>{lvl.last ? <>{amt(lvl.last.value, ing.unit)}<span className="why">{countLabel(lvl.last, WEEKLY(ing))}</span></> : <span className="why">No count yet</span>}</td>
-                  <td className="n">{lvl.lastStep ? <span className={'pill ' + (lvl.lastStep.over ? 'p-bad' : 'p-good')}>{signed(lvl.lastStep.difference, ing.unit)}</span> : '–'}</td>
+                  <td className="n">{lvl.lastStep ? <span className={'pill ' + (lvl.lastStep.over || isMissing(lvl.lastStep.difference) ? 'p-bad' : 'p-good')}>{signed(lvl.lastStep.difference, ing.unit)}</span> : '–'}</td>
                   <td className="n">{amt(usedTotal, ing.unit)}</td>
                 </tr>
               ))}
@@ -97,7 +97,8 @@ function StockDetail({ ing, from, to, onBack, onRange }: { ing: Ingredient; from
             <div><span>+ arrived since</span><b>{amt(lvl.arrivedTotal, ing.unit)}</b></div>
             <div><span>− used by sales since</span><Tap label={amt(lvl.usedTotal, ing.unit)}><UsedList used={usedFor(ing, sd.inputs, lvl.last.at, new Date().toISOString())} unit={ing.unit} /></Tap></div>
             <div><span>− thrown away since</span><b>{amt(lvl.wasteTotal, ing.unit)}</b></div>
-            <div className="total"><span>= expected now</span><b>{amt(lvl.expectedNow, ing.unit)}</b></div>
+            <div className="total"><span>= expected now</span><b>{amt(Math.max(0, lvl.expectedNow ?? 0), ing.unit)}</b></div>
+            {soldMoreThanCounted(lvl.expectedNow) > 0 && <p className="sub" style={{ margin: 0, color: 'var(--warn)' }}>Sales used {amt(soldMoreThanCounted(lvl.expectedNow), ing.unit)} more than was counted. Check that the last count, the deliveries and the recipe for this ingredient are right.</p>}
           </div>
         ) : <p className="sub">{hasCount(ing) ? 'No count yet.' : ing.note ?? 'This ingredient is not linked to a count, so only sales use is shown.'}</p>}
       </div>

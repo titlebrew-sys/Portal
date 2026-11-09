@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { Ingredient, SyncRun } from '../types';
-import type { Step, UseBit } from '../lib/stock';
+import { isMissing, soldMoreThanCounted, type Step, type UseBit } from '../lib/stock';
 import { addDays, dubaiClock, fmtDubaiTime, fmtShortDate } from '../lib/time';
 import { amount } from '../lib/usage';
 
@@ -84,8 +84,8 @@ export function StepCard({ ing, step, weekly = false }: { ing: Ingredient; step:
     <div className={'item' + (step.over ? ' flag' : '')} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
       <div className="panel-h">
         <b>{countLabel(step.to, weekly)}</b>
-        <span className={'pill ' + (step.over ? 'p-bad' : 'p-good')}>
-          {step.over ? 'Above the limit' : 'Within the limit'}: {signed(step.difference, u)}{step.pct !== null ? ` (${step.pct > 0 ? '+' : ''}${step.pct}%)` : ''}
+        <span className={'pill ' + (step.over || isMissing(step.difference) ? 'p-bad' : 'p-good')}>
+          {step.over ? 'Above the limit' : isMissing(step.difference) ? 'Missing, within the limit' : 'Within the limit'}: {signed(step.difference, u)}{step.pct !== null ? ` (${step.pct > 0 ? '+' : ''}${step.pct}%)` : ''}
         </span>
       </div>
       <div className="breakdown">
@@ -98,8 +98,9 @@ export function StepCard({ ing, step, weekly = false }: { ing: Ingredient; step:
           {step.waste.length ? <Tap label={amt(step.wasteTotal, u)}>{step.waste.map((w, i) => <p key={i} className="sub" style={{ margin: 0 }}>{whenText(w.at)}: {w.item} {amt(w.qty, u)} ({w.reason.toLowerCase()})</p>)}</Tap> : <b>{amt(0, u)}</b>}
         </div>
         <div className="total"><span>= expected</span><b>{amt(step.expected, u)}</b></div>
+        {soldMoreThanCounted(step.expected) > 0 && <p className="sub" style={{ margin: 0, color: 'var(--warn)' }}>Sales used {amt(soldMoreThanCounted(step.expected), u)} more than was counted at the last count, so the expected amount is below zero. Check the last count, the deliveries and the recipe.</p>}
         <div><span>Counted ({step.to.countedBy})</span><Tap label={amt(step.counted, u)}><CountParts parts={step.to.parts} unit={u} /></Tap></div>
-        <div className="total"><span>Difference = counted − expected</span><b style={{ color: step.over ? 'var(--bad)' : undefined }}>{signed(step.difference, u)}</b></div>
+        <div className="total"><span>Difference = counted − expected</span><b style={{ color: step.over || isMissing(step.difference) ? 'var(--bad)' : undefined }}>{signed(step.difference, u)}</b></div>
       </div>
     </div>
   );

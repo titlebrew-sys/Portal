@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CountRow, Ingredient, Order, Rule, WasteRow } from '../types';
 import { seedItems } from '../data/seed';
-import { currentLevel, isOver, snapshots, steps, type StockInputs } from './stock';
+import { currentLevel, isMissing, isOver, snapshots, soldMoreThanCounted, steps, type StockInputs } from './stock';
 import type { LineUsage } from './usage';
 
 const milk: Ingredient = { id: 'milk-full-fat', name: 'Full fat milk', unit: 'ml', countFrom: '1000*bar-full-fat-milk', limitPct: 5, note: null, active: true, sort: 0 };
@@ -111,5 +111,23 @@ describe('roasting: a big rise in a bean count is a new roast', () => {
     expect([s.arrived, s.difference]).toEqual([[], -1000]);
     const [m] = steps(milk, inputs({ counts: [count('bar-full-fat-milk', '2026-11-05', 2, 2, '2026-11-05T17:00:00Z'), count('bar-full-fat-milk', '2026-11-06', 1, 20, '2026-11-06T12:00:00Z')] }));
     expect([m.arrived, m.difference]).toEqual([[], 18000]);
+  });
+});
+
+describe('expected below zero', () => {
+  it('says how much more sales used than was counted', () => {
+    expect(soldMoreThanCounted(-450.25)).toBe(450.25);
+    expect(soldMoreThanCounted(0)).toBe(0);
+    expect(soldMoreThanCounted(1200)).toBe(0);
+    expect(soldMoreThanCounted(null)).toBe(0);
+  });
+});
+
+describe('missing stock', () => {
+  it('a count lower than expected is missing, even inside the limit; equal or higher is not', () => {
+    expect(isMissing(-50)).toBe(true);
+    expect(isMissing(-0.01)).toBe(false); // rounding
+    expect(isMissing(0)).toBe(false);
+    expect(isMissing(300)).toBe(false);
   });
 });
