@@ -76,7 +76,7 @@ Recipes job ideas: a list of Loyverse choices (modifiers) the Portal has no rule
 "Ethiopia Sidamo (Filter)" (9 Nov: fell back to Colombia filter beans) are caught early; clearer text
 when expected stock is below zero ("sold more than was counted").
 
-**Built 9 Nov (waiting for Arsen to paste and test):** LPO fix, own email for staff (Download LPO +
+**Built 9 Nov, pasted, setupStillComing run and deployed by Arsen 9 Nov (now in live use):** LPO fix, own email for staff (Download LPO +
 Open email, manager keeps the Gmail draft), Delayed / Delivery cancelled in Deliveries. Also built: delayed items lower
 the sheet's suggestion (column W + setupStillComing). Still to do: the Portal Deliveries page
 could show Delayed / Cancelled (the bridge now sends each item's status).
