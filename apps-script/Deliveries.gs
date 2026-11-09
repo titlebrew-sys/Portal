@@ -7,6 +7,7 @@
  * - Staff confirm each supplier, or change a number when something is short or extra.
  * - Staff add anything that arrived without an order: bought from a shop, or extra from a supplier.
  * Everything is written to the "Deliveries" tab and sent to the portal with the counts.
+ * After each confirmation or arrival, Kitchen expiry dates follow what actually arrived.
  */
 
 var DV_SHEET = 'Deliveries';
@@ -32,7 +33,7 @@ function dvAddDays_(key, n) { return new Date(Date.parse(key + 'T12:00:00Z') + n
 
 /**
  * Remembers today's final orders with quantities, per supplier, so tomorrow staff can confirm them.
- * Called by portalBridgeSend (so it runs at the 5pm and 11pm saves). Nothing is ordered on Saturday.
+ * Called at the 5pm and 11pm saves. Nothing is ordered on Saturday.
  */
 function deliveriesSnapshotOrders_() {
   var ss = SpreadsheetApp.getActive();
@@ -102,6 +103,49 @@ function dvItems_() {
   return { items: items, bySupplier: bySupplier };
 }
 
+/**
+ * What actually arrived today, per counted item, from the Deliveries tab:
+ * { item: qty in count units }. Items confirmed as not delivered are there with 0.
+ */
+function dvArrivedToday_(dayKey) {
+  var out = {};
+  dvRows_(dayKey || spTodayKey()).forEach(function (x) {
+    var item = String(x.r[6] || x.r[5]);
+    if (!item) return;
+    out[item] = (out[item] || 0) + (Number(x.r[9]) || 0);
+  });
+  return out;
+}
+
+/**
+ * Kitchen expiry dates follow what arrived today:
+ *   something arrived and New expiry is empty: New expiry = today + shelf life - 1
+ *   confirmed as not delivered and New expiry is the date the 4am reset expected: New expiry cleared
+ * Dates typed by staff are left alone.
+ */
+function dvApplyExpiry_(dayKey) {
+  var ss = SpreadsheetApp.getActive();
+  var arrived = dvArrivedToday_(dayKey);
+  if (!Object.keys(arrived).length) return;
+  var shelf = {};
+  var rules = ss.getSheetByName('Rules');
+  rules.getRange(5, 1, rules.getLastRow() - 4, 26).getValues().forEach(function (r) { if (Number(r[25]) > 0) shelf[String(r[2])] = Number(r[25]); });
+  var today = Utilities.parseDate(dayKey, TZ, 'yyyy-MM-dd');
+  var kit = ss.getSheetByName('Kitchen');
+  var vals = kit.getRange(FIRST_ROW, 1, kit.getLastRow() - FIRST_ROW + 1, 4).getValues();
+  vals.forEach(function (r, i) {
+    var item = String(r[1]);
+    if (!isItemRow(r) || !shelf[item] || !(item in arrived)) return;
+    var auto = new Date(today.getTime() + (shelf[item] - 1) * 864e5);
+    var cur = r[3];
+    if (arrived[item] > 0 && !dvIsDate_(cur)) {
+      kit.getRange(FIRST_ROW + i, 4).setValue(auto);
+    } else if (arrived[item] === 0 && dvIsDate_(cur) && dvKey_(cur) === dvKey_(auto)) {
+      kit.getRange(FIRST_ROW + i, 4).clearContent();
+    }
+  });
+}
+
 /* ---------------- Called by the staff page ---------------- */
 
 function spDeliveries(token) {
@@ -163,6 +207,8 @@ function spConfirmDelivery(token, supplier, items) {
       .reverse().forEach(function (x) { sh.deleteRow(x.row); });
     sh.getRange(sh.getLastRow() + 1, 1, out.length, DV_HEAD.length).setValues(out);
     sh.getRange(2, 2, sh.getLastRow() - 1, 1).setNumberFormat('ddd d mmm, h:mm am/pm');
+    SpreadsheetApp.flush();
+    try { dvApplyExpiry_(today); } catch (e) { Logger.log('Expiry from deliveries: ' + e); }
   } finally {
     lock.releaseLock();
   }
@@ -207,6 +253,8 @@ function spAddArrival(token, p) {
     var sh = dvSheet_();
     sh.getRange(sh.getLastRow() + 1, 1, rows.length, DV_HEAD.length).setValues(rows);
     sh.getRange(2, 2, sh.getLastRow() - 1, 1).setNumberFormat('ddd d mmm, h:mm am/pm');
+    SpreadsheetApp.flush();
+    try { dvApplyExpiry_(today); } catch (e) { Logger.log('Expiry from deliveries: ' + e); }
   } finally {
     lock.releaseLock();
   }

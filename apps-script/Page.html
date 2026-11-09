@@ -808,7 +808,7 @@
       var card = el('div', 'dv-sup' + (s.confirmedAt ? ' ok' : ''));
       var head = el('div', 'dv-head');
       head.appendChild(el('b', '', s.name));
-      head.appendChild(el('span', '', s.confirmedAt ? 'Confirmed ' + s.confirmedAt + ' by ' + s.confirmedBy + ' \u2713' : 'Expected'));
+      head.appendChild(el('span', '', s.confirmedAt ? 'Confirmed ' + s.confirmedAt + ' by ' + s.confirmedBy + ' \u2713' : 'Received'));
       card.appendChild(head);
       var inputs = [];
       var btn = el('button', 'dv-ok', s.confirmedAt ? 'Save changes' : 'Confirm: everything came'); btn.type = 'button';
@@ -828,7 +828,7 @@
         n.appendChild(o); row.appendChild(n);
         var w = el('div', 'stepper');
         var i = el('input', 'num'); i.type = 'text'; i.inputMode = 'decimal'; i.autocomplete = 'off';
-        i.value = String(l.arrived === null ? l.ordered : l.arrived);
+        i.value = String(l.arrived === null || l.arrived === undefined ? l.ordered : l.arrived);
         i.setAttribute('aria-label', l.item + ' arrived');
         i.oninput = relabel;
         var bump = function (dd) { var v = Number(String(i.value).replace(',', '.')) || 0; i.value = String(Math.max(0, Math.round((v + dd) * 100) / 100)); relabel(); };
