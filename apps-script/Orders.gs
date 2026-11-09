@@ -27,6 +27,14 @@ function orCanOrder(name) {
   return rows.some(function (r) { return String(r[0]).trim() === name && /^y(es)?$/i.test(String(r[3]).trim()); });
 }
 
+// Staff tab column C: "Y" means manager (only managers get the Gmail draft in the Title Brew account)
+function orIsManager_(name) {
+  var st = SpreadsheetApp.getActive().getSheetByName('Staff');
+  if (!st || st.getLastRow() < 2) return false;
+  var rows = st.getRange(2, 1, st.getLastRow() - 1, 3).getDisplayValues();
+  return rows.some(function (r) { return String(r[0]).trim() === name && /^y(es)?$/i.test(String(r[2]).trim()); });
+}
+
 function spOrderAccess(token) {
   var name = spWho(token);
   if (!name) return { expired: true };
@@ -96,6 +104,7 @@ function orDoneToday_() {
 }
 
 function orBlockData_(sh, b, sups, done) {
+  var coming = typeof dvStillComing_ === 'function' ? dvStillComing_() : {};
   var first = b.items[0], lastRow = b.items[b.items.length - 1];
   var v = sh.getRange(first, 1, lastRow - first + 1, 8).getDisplayValues();
   var raw = sh.getRange(first, 5, lastRow - first + 1, 2).getValues();   // E your change, F final
@@ -104,7 +113,8 @@ function orBlockData_(sh, b, sups, done) {
     return {
       row: row, item: r[0], count: r[1], unit: r[2], suggested: r[3],
       change: raw[i][0] === '' || raw[i][0] === null ? '' : String(raw[i][0]),
-      final: Number(raw[i][1]) || 0, finalText: r[5], orderUnit: r[6], notes: r[7]
+      final: Number(raw[i][1]) || 0, finalText: r[5], orderUnit: r[6], notes: r[7],
+      coming: coming[r[0]] || 0
     };
   });
   var s = sups[b.name] || { how: '', to: '' };
@@ -113,6 +123,8 @@ function orBlockData_(sh, b, sups, done) {
     name: b.name,
     status: String(sh.getRange(b.head, 3).getDisplayValue()),
     kind: kind, how: s.how, url: kind === 'website' ? s.to : '',
+    emailTo: kind === 'bakery' || kind === 'email' ? s.to : '',
+    subject: 'Order. Title Brew for ' + orDeliveryText_(),
     rows: rows,
     toOrder: rows.some(function (x) { return x.final > 0; }),
     message: b.msg ? String(sh.getRange(b.msg, 2).getDisplayValue()) : '',
@@ -121,6 +133,13 @@ function orBlockData_(sh, b, sups, done) {
     lastLpo: kind === 'bakery' ? orLastLpo_(sh, b) : null,
     done: done[b.name] || ''
   };
+}
+
+// Delivery date as the Bakery email writes it, e.g. "10 November"
+function orDeliveryText_() {
+  var count = SpreadsheetApp.getActive().getSheetByName('Bar').getRange('C2').getValue();
+  if (Object.prototype.toString.call(count) !== '[object Date]') return '';
+  return Utilities.formatDate(new Date(count.getTime() + 86400000), TZ, 'd MMMM');
 }
 
 /* ---------------- LPO number (The Bakery) ---------------- */
@@ -140,6 +159,28 @@ function orLastLpo_(sh, b) {
   return n > 0 ? { no: n, on: '' } : null;
 }
 
+/**
+ * Checks the typed LPO number and writes it to the LPO Number row (Rules C2 reads it).
+ * Returns { ok, no } or { ok: false, msg }.
+ */
+function orSetLpo_(sh, b, newLpo) {
+  var typed = Number(String(newLpo === undefined || newLpo === null ? '' : newLpo).trim());
+  var last = orLastLpo_(sh, b);
+  if (!(typed > 0) || Math.round(typed) !== typed) return { ok: false, msg: 'Type the new LPO number.' };
+  if (last && typed <= last.no) return { ok: false, msg: 'The new LPO number must be higher than ' + last.no + '.' };
+  if (!b.lpo) return { ok: false, msg: 'The LPO Number row is missing on Today\'s Orders.' };
+  sh.getRange(b.lpo, 2).setValue(typed);
+  SpreadsheetApp.flush();
+  return { ok: true, no: typed };
+}
+
+/** Remembers that this LPO number was used today (note on Today's Orders and Script Properties). */
+function orLpoUsed_(sh, b, no) {
+  var on = Utilities.formatDate(new Date(), TZ, 'EEE d MMM');
+  PropertiesService.getScriptProperties().setProperty('tb_last_lpo', JSON.stringify({ no: no, on: on }));
+  if (b.lpo) sh.getRange(b.lpo, 3).setValue('LPO ' + no + ' last used on ' + on + '. Change the number after this order is sent.').setFontColor('#666666');
+}
+
 /* ---------------- Called by the app ---------------- */
 
 function spOrders(token) {
@@ -153,6 +194,7 @@ function spOrders(token) {
   return {
     ok: true,
     open: orOpen_(name),
+    manager: orIsManager_(name),
     countDate: String(sh.getRange('B2').getDisplayValue()),
     delivery: String(sh.getRange('B3').getDisplayValue()),
     note: String(sh.getRange('D2').getDisplayValue()),
@@ -194,22 +236,14 @@ function spOrderDraft(token, supplier, newLpo) {
   var extra = '';
   try {
     if (data.kind === 'bakery') {
-      var typed = Number(String(newLpo === undefined || newLpo === null ? '' : newLpo).trim());
-      var last = orLastLpo_(sh, b);
-      if (!(typed > 0) || Math.round(typed) !== typed) return { ok: false, msg: 'Type the new LPO number.' };
-      if (last && typed <= last.no) return { ok: false, msg: 'The new LPO number must be higher than ' + last.no + '.' };
-      if (!b.lpo) return { ok: false, msg: 'The LPO Number row is missing on Today\'s Orders.' };
-      // Rules C2 reads this cell, and draftBakeryEmail uses Rules C2 for the LPO and the file name
-      sh.getRange(b.lpo, 2).setValue(typed);
-      SpreadsheetApp.flush();
+      // Rules C2 reads the LPO Number row, and draftBakeryEmail uses Rules C2 for the LPO and the file name
+      var set = orSetLpo_(sh, b, newLpo);
+      if (!set.ok) return set;
+      var typed = set.no;
       var lpoNo = draftBakeryEmail();
       if (Number(lpoNo) !== typed) return { ok: false, msg: 'The LPO came out as ' + lpoNo + ', not ' + typed + '. Check that Rules C2 reads the LPO Number row. The draft was made, delete it in Gmail.' };
-      PropertiesService.getScriptProperties().setProperty('tb_last_lpo', JSON.stringify({ no: typed, on: Utilities.formatDate(new Date(), TZ, 'EEE d MMM') }));
+      orLpoUsed_(sh, b, typed);
       extra = ' with LPO ' + lpoNo;
-      if (b.lpo) {
-        sh.getRange(b.lpo, 3).setValue('LPO ' + lpoNo + ' last used on ' +
-          Utilities.formatDate(new Date(), TZ, 'EEE d MMM') + '. Change the number after this order is sent.').setFontColor('#666666');
-      }
     } else if (data.kind === 'email') {
       draftSupplierEmail(supplier, data.message);
     } else {
@@ -225,6 +259,50 @@ function spOrderDraft(token, supplier, newLpo) {
   return { ok: true, msg: 'Draft ready in Gmail' + extra + '.' };
 }
 
+/**
+ * The Bakery LPO as an Excel file the phone can download (for staff who send from their own email).
+ * Same file as the Gmail draft attachment. Saved in the Drive folder "Title Brew LPO files", readable
+ * by anyone with the link, and removed after 7 days.
+ */
+function spLpoFile(token, newLpo) {
+  var name = spWho(token);
+  if (!name) return { expired: true };
+  if (!orCanOrder(name)) return { ok: false, msg: 'Not allowed.' };
+  var ss = SpreadsheetApp.getActive();
+  var sh = ss.getSheetByName(OR_SHEET);
+  var b = orBlocks_().filter(function (x) { return x.name === 'The Bakery'; })[0];
+  if (!b) return { ok: false, msg: 'The Bakery is not on Today\'s Orders.' };
+  var data = orBlockData_(sh, b, orSuppliers_(), {});
+  if (!data.toOrder) return { ok: false, msg: 'Nothing to order from The Bakery today.' };
+  var set = orSetLpo_(sh, b, newLpo);
+  if (!set.ok) return set;
+  var no = Number(ss.getSheetByName('Rules').getRange('C2').getValue());
+  if (no !== set.no) return { ok: false, msg: 'Rules C2 shows ' + no + ', not ' + set.no + '. Check that Rules C2 reads the LPO Number row.' };
+  try {
+    var lpo = ss.getSheetByName('LPO');
+    var tmp = SpreadsheetApp.create('Title Brew LPO temp');
+    var copy = lpo.copyTo(tmp).setName('LPO');
+    var range = lpo.getDataRange();
+    copy.getRange(1, 1, range.getNumRows(), range.getNumColumns()).setValues(range.getValues());
+    tmp.deleteSheet(tmp.getSheets()[0]);
+    SpreadsheetApp.flush();
+    var blob = UrlFetchApp.fetch('https://docs.google.com/spreadsheets/d/' + tmp.getId() + '/export?format=xlsx',
+      { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } }).getBlob().setName('Title Brew LPO ' + no + '.xlsx');
+    DriveApp.getFileById(tmp.getId()).setTrashed(true);
+    var folders = DriveApp.getFoldersByName('Title Brew LPO files');
+    var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder('Title Brew LPO files');
+    var old = folder.getFiles(), weekAgo = Date.now() - 7 * 864e5;
+    while (old.hasNext()) { var f = old.next(); if (f.getDateCreated().getTime() < weekAgo) f.setTrashed(true); }
+    var file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    orLpoUsed_(sh, b, no);
+    orLog_(name, 'The Bakery', 'LPO ' + no + ' downloaded', data.message);
+    return { ok: true, no: no, name: file.getName(), url: 'https://drive.google.com/uc?export=download&id=' + file.getId() };
+  } catch (e) {
+    return { ok: false, msg: 'No LPO file: ' + (e && e.message ? e.message : e) };
+  }
+}
+
 /** Records that the WhatsApp (or website) order was opened. The app opens WhatsApp itself. */
 function spOrderSent(token, supplier, how) {
   var name = spWho(token);
@@ -234,7 +312,7 @@ function spOrderSent(token, supplier, how) {
   var b = orBlocks_().filter(function (x) { return x.name === supplier; })[0];
   if (!b) return { ok: false, msg: supplier + ' is not on Today\'s Orders.' };
   var data = orBlockData_(sh, b, orSuppliers_(), {});
-  orLog_(name, supplier, how === 'website' ? 'Website opened' : 'WhatsApp opened', data.message);
+  orLog_(name, supplier, how === 'website' ? 'Website opened' : how === 'email' ? 'Email opened' : 'WhatsApp opened', data.message);
   return { ok: true };
 }
 

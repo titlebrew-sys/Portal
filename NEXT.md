@@ -17,6 +17,11 @@ Beverages 150 AED) and suggest items near reorder level; note when close to 10 c
 (1 free). Small fix: Suppliers tab, New Country Home cutoff typo "4p m".
 After rules: recipes, by asking Arsen questions item by item (Arsen: later).
 
+**Built 9 Nov (waiting for Arsen to paste and test):** LPO fix, own email for staff (Download LPO +
+Open email, manager keeps the Gmail draft), Delayed / Delivery cancelled in Deliveries. Still to do:
+the sheet's Suggested number should subtract delayed items (needs Code.gs); the Portal Deliveries page
+could show Delayed / Cancelled (the bridge now sends each item's status).
+
 **Bug 9 Nov: LPO number does not change in the LPO file or in its file name (APP, The Bakery).**
 Cause found 9 Nov: Rules C2 = 'Today''s Orders'!B33, but the LPO Number row moved (row 40 on 8 Nov).
 draftBakeryEmail reads Rules C2 for the file name and LPO. Fix given: Rules C2 =

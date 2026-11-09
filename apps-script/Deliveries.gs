@@ -8,10 +8,17 @@
  * - Staff add anything that arrived without an order: bought from a shop, or extra from a supplier.
  * Everything is written to the "Deliveries" tab and sent to the portal with the counts.
  * After each confirmation or arrival, Kitchen expiry dates follow what actually arrived.
+ *
+ * Delayed and cancelled (9 Nov 2026): each item row has a Status (column P):
+ *   ''          everything that was ordered came
+ *   'Delayed'   the rest (ordered - arrived) is still coming. It can still be confirmed today; if it
+ *               is still Delayed at the end of the day, the rest is added to tomorrow's list.
+ *   'Cancelled' the rest is not coming.
  */
 
 var DV_SHEET = 'Deliveries';
-var DV_HEAD = ['Date', 'When', 'Staff', 'Type', 'Supplier', 'Item', 'Count item', 'Ordered', 'Arrived', 'Arrived (count units)', 'Unit', 'Paid (AED)', 'Why', 'Note', 'Entry'];
+var DV_HEAD = ['Date', 'When', 'Staff', 'Type', 'Supplier', 'Item', 'Count item', 'Ordered', 'Arrived', 'Arrived (count units)', 'Unit', 'Paid (AED)', 'Why', 'Note', 'Entry', 'Status'];
+var DV_STATUS = { delayed: 'Delayed', cancelled: 'Cancelled' };
 var DV_TYPES = { order: 'Order', supplier: 'Extra from a supplier', shop: 'Bought from a shop' };
 var DV_WHY = ['Ran out', 'Supplier sent extra', 'Other'];
 
@@ -23,6 +30,11 @@ function dvSheet_() {
     sh.getRange(1, 1, 1, DV_HEAD.length).setValues([DV_HEAD]).setFontWeight('bold').setFontColor('#FFFFFF').setBackground('#3E2723');
     sh.setFrozenRows(1);
     sh.setColumnWidth(2, 150); sh.setColumnWidth(6, 200); sh.setColumnWidth(7, 160); sh.setColumnWidth(14, 200);
+  }
+  // The Status column was added later: give older tabs its header
+  if (sh.getMaxColumns() < DV_HEAD.length) sh.insertColumnsAfter(sh.getMaxColumns(), DV_HEAD.length - sh.getMaxColumns());
+  if (String(sh.getRange(1, DV_HEAD.length).getValue()) !== 'Status') {
+    sh.getRange(1, DV_HEAD.length).setValue('Status').setFontWeight('bold').setFontColor('#FFFFFF').setBackground('#3E2723');
   }
   return sh;
 }
@@ -64,14 +76,56 @@ function deliveriesSnapshotOrders_() {
   props.getKeys().forEach(function (k) { if (k.indexOf('dvorders_') === 0 && k.slice(9) < limit) props.deleteProperty(k); });
 }
 
-/** Yesterday's orders, grouped by supplier. */
+/**
+ * Expected today, grouped by supplier: yesterday's orders, plus what was still Delayed at the end of
+ * yesterday (added to the same item, with "delayed" saying how much of it is the carried part).
+ */
 function dvExpected_(todayKey) {
-  var raw = PropertiesService.getScriptProperties().getProperty('dvorders_' + dvAddDays_(todayKey, -1));
+  var yesterday = dvAddDays_(todayKey, -1);
+  var raw = PropertiesService.getScriptProperties().getProperty('dvorders_' + yesterday);
   var lines = [];
   try { lines = raw ? JSON.parse(raw) : []; } catch (e) { lines = []; }
   var by = {};
-  lines.forEach(function (l) { (by[l.supplier] = by[l.supplier] || []).push(l); });
+  lines.forEach(function (l) { (by[l.supplier] = by[l.supplier] || []).push({ supplier: l.supplier, item: l.item, qty: l.qty, pack: l.pack, countItem: l.countItem, delayed: 0 }); });
+  dvRows_(yesterday).forEach(function (x) {
+    var r = x.r;
+    if (r[3] !== DV_TYPES.order || String(r[15]) !== DV_STATUS.delayed) return;
+    var rest = Math.round(((Number(r[7]) || 0) - (Number(r[8]) || 0)) * 1000) / 1000;
+    if (!(rest > 0)) return;
+    var sup = String(r[4]), item = String(r[5]);
+    var arrivedQty = Number(r[8]) || 0;
+    var pack = arrivedQty > 0 ? (Number(r[9]) || 0) / arrivedQty : dvPackOf_(item);
+    var list = by[sup] = by[sup] || [];
+    var same = list.filter(function (l) { return l.item === item; })[0];
+    if (same) { same.qty = Math.round((same.qty + rest) * 1000) / 1000; same.delayed = rest; }
+    else list.push({ supplier: sup, item: item, qty: rest, pack: pack || 1, countItem: String(r[6]), delayed: rest });
+  });
   return by;
+}
+
+/** Count units per order unit (Rules column K), for a carried item with nothing arrived yet. */
+function dvPackOf_(orderItem) {
+  if (!dvPackOf_.map) {
+    dvPackOf_.map = {};
+    var rules = SpreadsheetApp.getActive().getSheetByName('Rules');
+    rules.getRange(5, 1, rules.getLastRow() - 4, 11).getValues().forEach(function (r) { if (r[1]) dvPackOf_.map[String(r[1])] = Number(r[10]) || 1; });
+  }
+  return dvPackOf_.map[orderItem] || 1;
+}
+
+/**
+ * Today's delayed items still coming, per order item: { 'Full Fat Milk 2L': 6 }. Used by the Orders
+ * screen so nobody orders them again.
+ */
+function dvStillComing_(todayKey) {
+  var out = {};
+  dvRows_(todayKey || spTodayKey()).forEach(function (x) {
+    var r = x.r;
+    if (r[3] !== DV_TYPES.order || String(r[15]) !== DV_STATUS.delayed) return;
+    var rest = (Number(r[7]) || 0) - (Number(r[8]) || 0);
+    if (rest > 0) out[String(r[5])] = (out[String(r[5])] || 0) + Math.round(rest * 1000) / 1000;
+  });
+  return out;
 }
 
 /** Rows of the Deliveries tab for one day. */
@@ -156,14 +210,22 @@ function spDeliveries(token) {
   var rows = dvRows_(today);
   var suppliers = Object.keys(expected).map(function (s) {
     var conf = rows.filter(function (x) { return x.r[3] === DV_TYPES.order && String(x.r[4]) === s; });
-    var arrived = {};
-    conf.forEach(function (x) { arrived[String(x.r[5])] = Number(x.r[8]) || 0; });
+    var arrived = {}, status = {};
+    conf.forEach(function (x) { arrived[String(x.r[5])] = Number(x.r[8]) || 0; status[String(x.r[5])] = String(x.r[15] || ''); });
+    var st = Object.keys(status).map(function (k) { return status[k]; });
+    // open: nobody did anything yet. delayed: something is still coming today.
+    var state = !conf.length ? 'open' : st.indexOf(DV_STATUS.delayed) >= 0 ? 'delayed' : st.indexOf(DV_STATUS.cancelled) >= 0 ? 'cancelled' : 'confirmed';
+    var at = conf.length ? Utilities.formatDate(conf[0].r[1], TZ, 'h:mma').toLowerCase() : '';
+    var by = conf.length ? String(conf[0].r[2]) : '';
     return {
-      name: s,
-      confirmedAt: conf.length ? Utilities.formatDate(conf[0].r[1], TZ, 'h:mma').toLowerCase() : '',
-      confirmedBy: conf.length ? String(conf[0].r[2]) : '',
+      name: s, state: state,
+      // confirmedAt stays empty while open or delayed, so the reminders still count it as waiting
+      confirmedAt: state === 'confirmed' || state === 'cancelled' ? at : '',
+      confirmedBy: state === 'confirmed' || state === 'cancelled' ? by : '',
+      markedAt: at, markedBy: by,
+      // 0 instead of null: Google drops nulls on the way to the phone
       items: expected[s].map(function (l) {
-        return { item: l.item, ordered: l.qty, arrived: l.item in arrived ? arrived[l.item] : null };
+        return { item: l.item, ordered: l.qty, delayed: l.delayed || 0, arrived: l.item in arrived ? arrived[l.item] : -1, status: status[l.item] || '' };
       }),
     };
   });
@@ -181,8 +243,12 @@ function spDeliveries(token) {
   };
 }
 
-/** Confirms one supplier's delivery. items: [{item, qty}] in the units it was ordered in. */
-function spConfirmDelivery(token, supplier, items) {
+/**
+ * Confirms one supplier's delivery. items: [{item, qty}] in the units it was ordered in.
+ * rest: what happens to items that came short: 'delayed' (still coming) or 'cancelled' (not coming).
+ * Delayed with nothing arrived yet: all qty 0 and rest 'delayed'.
+ */
+function spConfirmDelivery(token, supplier, items, rest) {
   var name = spWho(token);
   if (!name) return { expired: true };
   var today = spTodayKey();
@@ -196,7 +262,9 @@ function spConfirmDelivery(token, supplier, items) {
     var v = l.item in got ? String(got[l.item]).trim().replace(',', '.') : String(l.qty);
     var q = Number(v);
     if (v === '' || !isFinite(q) || q < 0) return { ok: false, msg: 'Check the number for ' + l.item + '.' };
-    out.push([today, new Date(), name, DV_TYPES.order, supplier, l.item, l.countItem, l.qty, q, q * (l.pack || 1), '', '', '', '', 'order|' + today + '|' + supplier]);
+    var short = q < l.qty - 1e-9;
+    var status = !short ? '' : rest === 'delayed' ? DV_STATUS.delayed : DV_STATUS.cancelled;
+    out.push([today, new Date(), name, DV_TYPES.order, supplier, l.item, l.countItem, l.qty, q, q * (l.pack || 1), '', '', '', '', 'order|' + today + '|' + supplier, status]);
   }
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -245,7 +313,7 @@ function spAddArrival(token, p) {
     var q = Number(String(lines[i].qty).replace(',', '.'));
     if (!isFinite(q) || q <= 0) return { ok: false, msg: 'Check the amount for ' + item + '.' };
     rows.push([today, new Date(), name, DV_TYPES[kind], kind === 'supplier' ? String(p.supplier) : '', item, item, '', q, q, unitOf[item],
-      i === 0 && kind === 'shop' ? Number(paid) : '', why, note, id]);
+      i === 0 && kind === 'shop' ? Number(paid) : '', why, note, id, '']);
   }
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -278,7 +346,7 @@ function deliveriesForPortal_() {
           by: String(r[2]), paid: r[11] === '' ? null : Number(r[11]), why: String(r[12]), note: String(r[13]), items: [],
         };
       }
-      groups[id].items.push({ order_item: String(r[5]), count_item: String(r[6]), ordered: r[7] === '' ? null : Number(r[7]), qty: Number(r[8]), count_qty: Number(r[9]) });
+      groups[id].items.push({ order_item: String(r[5]), count_item: String(r[6]), ordered: r[7] === '' ? null : Number(r[7]), qty: Number(r[8]), count_qty: Number(r[9]), status: String(r[15] || '') });
     });
     Object.keys(groups).forEach(function (k) { out.push(groups[k]); });
   });

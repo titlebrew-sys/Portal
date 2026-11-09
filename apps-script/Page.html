@@ -214,6 +214,14 @@
   .or-msgline { font-size: 13px; text-align: center; color: var(--muted); }
   .or-msgline.err { color: #9B1C1C; font-weight: 600; }
   .or-msgline.ok { color: var(--s2); font-weight: 600; }
+  .dv-sup.late { border: 2px solid #B54708; }
+  .dv-sup.late .dv-head span { color: #B54708; }
+  .dv-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .dv-alt { min-height: 42px; border-radius: 21px; border: 1.5px solid var(--field); background: var(--card); color: var(--ink); font-size: 14px; font-weight: 700; padding: 4px 10px; }
+  .dv-ask { margin-top: 8px; font-size: 14px; font-weight: 700; color: #B54708; }
+  .or-go.alt { background: var(--card); color: var(--ord); border: 2px solid var(--ord); }
+  .or-dl { display: block; text-align: center; padding: 12px; border-radius: 24px; background: var(--ordbg); color: var(--ord); font-weight: 800; text-decoration: none; }
+  .or-step { font-size: 12px; font-weight: 700; color: var(--muted); }
   .or-more { height: 48px; border-radius: 12px; border: 1px dashed var(--field); background: transparent; color: var(--ink); font-size: 15px; font-weight: 600; }
 </style>
 </head>
@@ -879,14 +887,21 @@
   }
   function dvPending() {
     if (!S.dv) return [];
-    return S.dv.suppliers.filter(function (s) { return !s.confirmedAt; }).map(function (s) { return s.name; });
+    return S.dv.suppliers.filter(function (s) { return s.state ? s.state === 'open' : !s.confirmedAt; }).map(function (s) { return s.name; });
+  }
+  function dvDelayed() {
+    if (!S.dv) return [];
+    return S.dv.suppliers.filter(function (s) { return s.state === 'delayed'; }).map(function (s) { return s.name; });
   }
   function drawDvTile() {
     var t = $('dvTile'), sub = $('dvTileSub');
     if (!S.dv) { sub.textContent = 'Could not load deliveries'; t.className = 'area dv'; return; }
     var pend = dvPending(), n = S.dv.suppliers.length;
     if (!n) { sub.textContent = (S.dv.sunday ? 'No deliveries on Sunday' : 'Nothing ordered yesterday') + '. Tap to add something that arrived.'; t.className = 'area dv ok'; return; }
-    if (pend.length) { sub.textContent = pend.length + ' of ' + n + ' to confirm: ' + pend.join(', '); t.className = 'area dv'; }
+    var late = dvDelayed();
+    var lateText = late.length ? ' Delayed, still coming: ' + late.join(', ') + '.' : '';
+    if (pend.length) { sub.textContent = pend.length + ' of ' + n + ' to confirm: ' + pend.join(', ') + '.' + lateText; t.className = 'area dv'; }
+    else if (late.length) { sub.textContent = lateText.trim(); t.className = 'area dv'; }
     else { sub.textContent = 'All ' + n + ' confirmed \u2713'; t.className = 'area dv ok'; }
   }
   function openDeliveries() {
@@ -899,13 +914,20 @@
     var d = S.dv;
     if (!d) { L.appendChild(el('div', 'note-box warn', 'Could not load. Check your signal and go back to try again.')); return; }
     L.appendChild(el('div', 'note-box', d.suppliers.length
-      ? 'Ordered yesterday. Tap Confirm if everything came. If something is short or extra, change the number first.'
+      ? 'Ordered yesterday. Tap Confirm if everything came. If something is short or extra, change the number first. Not here yet? Tap Delayed. Not coming at all? Tap Delivery cancelled.'
       : (d.sunday ? 'No deliveries on Sunday.' : 'Nothing was ordered yesterday.') + ' You can still add something that arrived.'));
     d.suppliers.forEach(function (s) {
-      var card = el('div', 'dv-sup' + (s.confirmedAt ? ' ok' : ''));
+      var late = s.state === 'delayed';
+      var card = el('div', 'dv-sup' + (s.confirmedAt ? ' ok' : late ? ' late' : ''));
       var head = el('div', 'dv-head');
       head.appendChild(el('b', '', s.name));
-      head.appendChild(el('span', '', s.confirmedAt ? 'Confirmed ' + s.confirmedAt + ' by ' + s.confirmedBy + ' \u2713' : 'Received'));
+      var headText = 'Received';
+      if (late) headText = 'Delayed, still coming (' + s.markedBy + ', ' + s.markedAt + ')';
+      else if (s.state === 'cancelled') headText = s.items.every(function (l) { return l.arrived === 0; })
+        ? 'Delivery cancelled (' + s.confirmedBy + ', ' + s.confirmedAt + ')'
+        : 'Confirmed ' + s.confirmedAt + ' by ' + s.confirmedBy + ', the rest is not coming';
+      else if (s.confirmedAt) headText = 'Confirmed ' + s.confirmedAt + ' by ' + s.confirmedBy + ' \u2713';
+      head.appendChild(el('span', '', headText));
       card.appendChild(head);
       var inputs = [];
       var btn = el('button', 'dv-ok', s.confirmedAt ? 'Save changes' : 'Confirm: everything came'); btn.type = 'button';
@@ -915,7 +937,7 @@
         inputs.forEach(function (x) {
           var diff = Number(String(x.i.value).replace(',', '.')) !== x.l.ordered;
           x.o.className = 'o' + (diff ? ' diff' : '');
-          x.o.textContent = 'Ordered ' + x.l.ordered + (diff ? ' \u00b7 ' + (x.i.value === '' ? '?' : x.i.value) + ' came' : '');
+          x.o.textContent = 'Ordered ' + x.l.ordered + (x.l.delayed ? ' (incl. ' + x.l.delayed + ' delayed from yesterday)' : '') + (x.l.status === 'Delayed' && x.l.arrived > 0 ? ' \u00b7 ' + x.l.arrived + ' came earlier' : '') + (diff ? ' \u00b7 ' + (x.i.value === '' ? '?' : x.i.value) + ' came' : '');
         });
       };
       s.items.forEach(function (l) {
@@ -925,7 +947,9 @@
         n.appendChild(o); row.appendChild(n);
         var w = el('div', 'stepper');
         var i = el('input', 'num'); i.type = 'text'; i.inputMode = 'decimal'; i.autocomplete = 'off';
-        i.value = String(l.arrived === null || l.arrived === undefined ? l.ordered : l.arrived);
+        // Not confirmed yet (-1, or missing), or still delayed: expect everything that was ordered
+        var none = l.arrived === null || l.arrived === undefined || l.arrived < 0 || l.status === 'Delayed';
+        i.value = String(none ? l.ordered : l.arrived);
         i.setAttribute('aria-label', l.item + ' arrived');
         i.oninput = relabel;
         var bump = function (dd) { var v = Number(String(i.value).replace(',', '.')) || 0; i.value = String(Math.max(0, Math.round((v + dd) * 100) / 100)); relabel(); };
@@ -938,16 +962,52 @@
         inputs.push({ i: i, l: l, o: o });
       });
       var foot = el('div', 'dv-foot');
+      var send = function (items, rest, b) {
+        b.disabled = true; var was = b.textContent; b.textContent = 'Saving...';
+        call('spConfirmDelivery', [S.token, s.name, items, rest], function (res) {
+          if (!res.ok) { b.disabled = false; b.textContent = was; alert(res.msg); relabel(); return; }
+          loadDeliveries(function () { drawDeliveries(); drawDvTile(); });
+        }, function () { b.disabled = false; b.textContent = was; alert('Not saved. Check your signal and try again.'); relabel(); });
+      };
+      var ask = el('div', 'hidden'), row2 = null;
       btn.onclick = function () {
         var items = inputs.map(function (x) { return { item: x.l.item, qty: String(x.i.value).trim() }; });
         if (items.some(function (x) { return x.qty === '' || isNaN(Number(x.qty.replace(',', '.'))); })) { alert('Type a number for every item (0 if it did not come).'); return; }
-        btn.disabled = true; btn.textContent = 'Saving...';
-        call('spConfirmDelivery', [S.token, s.name, items], function (res) {
-          if (!res.ok) { btn.disabled = false; alert(res.msg); relabel(); return; }
-          loadDeliveries(function () { drawDeliveries(); drawDvTile(); });
-        }, function () { btn.disabled = false; alert('Not saved. Check your signal and try again.'); relabel(); });
+        var short = inputs.some(function (x) { return Number(String(x.i.value).replace(',', '.')) < x.l.ordered; });
+        if (!short) { send(items, '', btn); return; }
+        // Something came short: is the rest still coming, or not coming?
+        ask.innerHTML = '';
+        ask.appendChild(el('div', 'dv-ask', 'Some items came short. Is the rest still coming?'));
+        var row = el('div', 'dv-row2');
+        var yes = el('button', 'dv-alt', 'Still coming (delayed)'); yes.type = 'button';
+        var no = el('button', 'dv-alt', 'Not coming'); no.type = 'button';
+        yes.onclick = function () { send(items, 'delayed', yes); };
+        no.onclick = function () { send(items, 'cancelled', no); };
+        row.appendChild(yes); row.appendChild(no); ask.appendChild(row);
+        ask.classList.remove('hidden');
+        if (row2) row2.classList.add('hidden');
       };
-      foot.appendChild(btn); card.appendChild(foot);
+      foot.appendChild(btn); foot.appendChild(ask);
+      if (s.state === 'open' || s.state === 'delayed' || !s.state) {
+        row2 = el('div', 'dv-row2');
+        var zero = function () { return inputs.map(function (x) { return { item: x.l.item, qty: '0' }; }); };
+        if (!late) {
+          var dl = el('button', 'dv-alt', 'Delayed (still coming)'); dl.type = 'button';
+          dl.onclick = function () {
+            if (!confirm(s.name + ': nothing has arrived yet, but it is still coming?\n\nYou can still confirm it today when it arrives. If it does not come today, it moves to tomorrow.')) return;
+            send(zero(), 'delayed', dl);
+          };
+          row2.appendChild(dl);
+        }
+        var cn = el('button', 'dv-alt', 'Delivery cancelled'); cn.type = 'button';
+        cn.onclick = function () {
+          if (!confirm(s.name + ': the delivery is cancelled and nothing will come?')) return;
+          send(zero(), 'cancelled', cn);
+        };
+        row2.appendChild(cn);
+        foot.appendChild(row2);
+      }
+      card.appendChild(foot);
       L.appendChild(card);
       relabel();
     });
@@ -1109,6 +1169,7 @@
       info.appendChild(el('strong', 'sug', 'Suggested ' + (r.suggested === '' ? '0' : r.suggested)));
       n.appendChild(info);
       if (r.notes) n.appendChild(el('span', 'note', r.notes));
+      if (r.coming > 0) n.appendChild(el('span', 'note', r.coming + ' ' + (r.orderUnit || '') + ' still coming from a delayed delivery. Do not order it again.'));
       row.appendChild(n);
       var i = el('input', 'num chg'); i.type = 'text'; i.inputMode = 'decimal'; i.autocomplete = 'off';
       i.value = r.change; i.placeholder = r.suggested === '' ? '0' : r.suggested;
@@ -1155,16 +1216,56 @@
       var n = Number(String(lpoIn.value).trim());
       return n > 0 && Math.round(n) === n && (!s.lastLpo || n > s.lastLpo.no);
     };
+    var dlBtn = null, mailBtn = null, dlLink = null;
     if (s.kind === 'bakery' || s.kind === 'email') {
-      btn = el('button', 'or-go', 'Save as draft in Gmail'); btn.type = 'button';
+      // Everyone: open the email app on this phone (their own Gmail), with To, Subject and the message filled in.
+      // The Bakery: download the LPO first, then attach it.
+      if (s.kind === 'bakery') {
+        dlBtn = el('button', 'or-go alt', '1. Download LPO'); dlBtn.type = 'button';
+        dlBtn.disabled = !s.toOrder || !d.open || !lpoOk();
+        dlLink = el('div');
+        dlBtn.onclick = function () {
+          if (S.orBusy) { line.className = 'or-msgline err'; line.textContent = 'Wait a second, your change is still saving.'; return; }
+          var no = String(lpoIn.value).trim();
+          dlBtn.disabled = true; line.className = 'or-msgline'; line.textContent = 'Making LPO ' + no + '...';
+          call('spLpoFile', [S.token, no], function (res) {
+            if (!res.ok) { dlBtn.disabled = false; line.className = 'or-msgline err'; line.textContent = res.msg; return; }
+            s.lpoFile = res; s.lastLpo = { no: res.no, on: 'today' };
+            lpoIn.value = ''; lpoIn.placeholder = String(res.no + 1);
+            dlLink.innerHTML = '';
+            var a = el('a', 'or-dl', 'Tap to download ' + res.name); a.href = res.url; a.target = '_blank'; a.rel = 'noopener';
+            dlLink.appendChild(a);
+            line.className = 'or-msgline ok'; line.textContent = 'LPO ' + res.no + ' is ready. Download it, then tap Open email and attach it.';
+            if (mailBtn) mailBtn.disabled = false;
+            if (btn) btn.disabled = true;
+          }, function () { dlBtn.disabled = false; line.className = 'or-msgline err'; line.textContent = 'No connection. Try again.'; });
+        };
+      }
+      mailBtn = el('button', 'or-go', (s.kind === 'bakery' ? '2. ' : '') + 'Open email'); mailBtn.type = 'button';
+      mailBtn.disabled = !s.toOrder || !d.open || (s.kind === 'bakery' && !s.lpoFile);
+      mailBtn.onclick = function () {
+        if (S.orBusy) { line.className = 'or-msgline err'; line.textContent = 'Wait a second, your change is still saving.'; return; }
+        var to = String(s.emailTo || '').split(',').map(function (x) { return x.trim(); }).filter(String).join(',');
+        window.open('mailto:' + to + '?subject=' + encodeURIComponent(s.subject || '') + '&body=' + encodeURIComponent(s.message), '_blank');
+        line.className = 'or-msgline ok';
+        line.textContent = s.kind === 'bakery' ? 'In your email app: attach ' + (s.lpoFile ? s.lpoFile.name : 'the LPO file') + ' from Downloads, check it and press Send.' : 'In your email app: check it and press Send.';
+        call('spOrderSent', [S.token, s.name, 'email'], function () {}, function () {});
+        card.classList.add('sent');
+      };
+    }
+    if ((s.kind === 'bakery' || s.kind === 'email') && d.manager) {
+      btn = el('button', 'or-go', 'Save as draft in Gmail (Title Brew)'); btn.type = 'button';
       btn.disabled = !s.toOrder || !d.open || !lpoOk();
-      if (lpoIn) lpoIn.oninput = function () {
-        btn.disabled = !s.toOrder || !d.open || !lpoOk();
+    }
+    if (lpoIn) lpoIn.oninput = function () {
+        if (btn) btn.disabled = !s.toOrder || !d.open || !lpoOk();
+        if (dlBtn) dlBtn.disabled = !s.toOrder || !d.open || !lpoOk();
         var t = String(lpoIn.value).trim();
         if (t && !lpoOk()) { line.className = 'or-msgline err'; line.textContent = s.lastLpo ? 'The new LPO number must be higher than ' + s.lastLpo.no + '.' : 'Type a whole number.'; }
         else { line.className = 'or-msgline'; line.textContent = ''; }
       };
-      btn.onclick = function () {
+    if (s.kind === 'bakery' || s.kind === 'email') {
+      if (btn) btn.onclick = function () {
         if (S.orBusy) { line.className = 'or-msgline err'; line.textContent = 'Wait a second, your change is still saving.'; return; }
         var lpoNo = lpoIn ? String(lpoIn.value).trim() : '';
         if (!confirm('Create the Gmail draft for ' + s.name + '?' + (lpoIn ? '\n\nThe LPO file will be number ' + lpoNo + '.' : ''))) return;
@@ -1175,7 +1276,7 @@
           line.textContent = res.ok ? res.msg + ' Open Gmail on titlebrew@gmail.com, check it and press Send.' : res.msg;
           if (res.ok) {
             s.done = 'Gmail draft by ' + S.name + ' just now'; card.classList.add('sent');
-            if (lpoIn) { s.lastLpo = { no: Number(lpoNo), on: 'today' }; lpoIn.value = ''; lpoIn.placeholder = String(Number(lpoNo) + 1); btn.disabled = true; }
+            if (lpoIn) { s.lastLpo = { no: Number(lpoNo), on: 'today' }; lpoIn.value = ''; lpoIn.placeholder = String(Number(lpoNo) + 1); btn.disabled = true; if (dlBtn) dlBtn.disabled = true; }
           }
         }, function () { btn.disabled = false; line.className = 'or-msgline err'; line.textContent = 'No connection. Try again.'; });
       };
@@ -1200,6 +1301,9 @@
     } else {
       line.textContent = s.how ? 'Order by: ' + s.how : '';
     }
+    if (dlBtn) { foot.appendChild(el('div', 'or-step', 'Send from your own email:')); foot.appendChild(dlBtn); foot.appendChild(dlLink); }
+    if (mailBtn) { if (!dlBtn) foot.appendChild(el('div', 'or-step', 'Send from your own email:')); foot.appendChild(mailBtn); }
+    if (btn && mailBtn) foot.appendChild(el('div', 'or-step', 'Or, manager only:'));
     if (btn) foot.appendChild(btn);
     foot.appendChild(line);
     card.appendChild(foot);

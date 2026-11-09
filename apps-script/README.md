@@ -7,10 +7,10 @@ The live versions of these files are in the Apps Script project of the Title Bre
   after every Save: `call('spSendToPortal', [S.token], function () {});` in saveNow.
   Also the manager-only sheet menu "Portal > Send to Portal now" (portalBridgeAddMenu, called from
   onOpen in Code.gs; Script Property PORTAL_SEND_EMAIL = the manager's Google account).
-- `Deliveries.gs`: same as live (copied 9 Nov 2026).
+- `Deliveries.gs`: live (9 Nov) plus Delayed / Delivery cancelled (Status column P on the Deliveries tab).
 - `Orders.gs`: live version (9 Nov) plus the LPO number fix: shows the last LPO, writes the typed
-  number into the LPO Number row (found by label), then makes the draft. Paste over the live file.
-- `Page.html`: same as live (copied 9 Nov 2026, with Place Order for Tomorrow and the Deliveries fix).
+  number into the LPO Number row (found by label), then makes the draft. Also staff ordering from their own email (Download LPO, Open email).
+- `Page.html`: live (9 Nov) plus Delayed / Cancelled buttons and Download LPO / Open email.
   OLD NOTE: They were changed further in
   the Claude chat (expiry handling after deliveries, manager PIN, Done screens, search box).
   Do not paste these over the live files.
