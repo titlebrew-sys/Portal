@@ -6,13 +6,14 @@
 import type { Ingredient, ModifierRule, Recipe } from '../types';
 import {
   COFFEE_GRAMS, COLD_BREWS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, MILK_EXCEPTIONS, MILK_LARGE, MILK_ML, NITRO_PER_SERVING, SPANISH_CONDENSED,
-  SPANISH_CONDENSED_TAKEAWAY, START_MODIFIER_RULES, isHotLatte, norm,
+  SPANISH_CONDENSED_TAKEAWAY, START_MODIFIER_RULES, FIXED_RECIPES, TAKEAWAY_TEA, isHotLatte, norm,
 } from './catalog';
 
 /** Ids of the starting rules this update adds or replaces. */
 const RULE_IDS = new Set([
   'mod-extrashot-brazil', 'mod-extrashot-ethiopia', 'mod-extrashot-extrashotbrazil', 'mod-extrashot-extrashotethiopia', 'mod-beans-ethiopiasidamofilter',
   'mod-any-cappucinolarge', 'mod-any-flatwhitelarge8oz', 'mod-matchaorcoffee-coffee', 'mod-matchaorcoffee-matcha',
+  'mod-iceteasweetner-any',
 ]);
 
 const has = (list: string[], name: string) => list.some((n) => norm(n) === norm(name));
@@ -42,6 +43,18 @@ export function updateRecipes(recipes: Recipe[], by: string): Recipe[] {
     if (norm(r.itemName) === norm('Nitro Cold Brew') && !lines.some((l) => l.ingredientId === 'nitro-cartridge' && l.qty === NITRO_PER_SERVING)) {
       lines = [...lines.filter((l) => l.ingredientId !== 'nitro-cartridge'), { ingredientId: 'nitro-cartridge', qty: NITRO_PER_SERVING }];
       changed = true;
+    }
+    // Matcha Grey and the shaken ice teas: exact recipes from the batches
+    const fixedKey = Object.keys(FIXED_RECIPES).find((n) => norm(n) === norm(r.itemName) && (n === 'Matcha Grey' || n.startsWith('Shaken Ice Tea')));
+    if (fixedKey) {
+      const want = FIXED_RECIPES[fixedKey].map((l) => ({ ...l }));
+      const wantTake = (TAKEAWAY_TEA[fixedKey] ?? r.takeaway.filter((p) => !/^(tea|syrup)-/.test(p.ingredientId))).map((p) => ({ ...p }));
+      const keep = r.takeaway.filter((p) => !/^(tea|syrup)-/.test(p.ingredientId));
+      const take = TAKEAWAY_TEA[fixedKey] ? [...keep, ...wantTake] : r.takeaway;
+      if (JSON.stringify(want) !== JSON.stringify(lines) || JSON.stringify(take) !== JSON.stringify(r.takeaway)) {
+        out.push({ ...r, lines: want, takeaway: take, updatedBy: by, updatedAt: at });
+      }
+      continue;
     }
     // Milk: 214 ml in every cup, except the special ones
     if (!has(MILK_EXCEPTIONS, r.itemName))

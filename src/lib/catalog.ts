@@ -170,8 +170,8 @@ export const isHotLatte = (name: string) => /latte/i.test(name) && !/^ice/i.test
  * "+ Size cold drink" (16oz clear cup): what the iced drink on the same receipt uses on top.
  * Iced coffee and matcha get theirs from the "Matcha or Coffee" choice on the size item (rules below).
  */
-export const SIZE_EXTRAS: { match: RegExp; extraMilk?: number; coffee?: number; matcha?: number; tea?: number; pumps?: number }[] = [
-  { match: /^shakenicetea/, tea: 4, pumps: 2 },
+export const SIZE_EXTRAS: { match: RegExp; extraMilk?: number; coffee?: number; matcha?: number; teaMl?: number }[] = [
+  { match: /^shakenicetea/, teaMl: 100 },
 ];
 
 const now = () => new Date().toISOString();
@@ -210,7 +210,7 @@ export const START_MODIFIER_RULES: ModifierRule[] = [
   rule('*', 'Flat White Large 8oz', [{ type: 'swapCup', from: 'cup-6oz', to: 'cup-8oz' }, { type: 'swapCup', from: 'lid-black', to: 'lid-flip' }]),
   rule('Extra Pump RAF/TOFFEE', '1', [{ type: 'add', qty: 10, byItem: { raf: 'syrup-vanilla', toffee: 'syrup-hazelnut' } }]),
   rule('Extra Pump RAF/TOFFEE', '2', [{ type: 'add', qty: 20, byItem: { raf: 'syrup-vanilla', toffee: 'syrup-hazelnut' } }]),
-  rule('Ice Tea Sweetner', '*', [{ type: 'add', qty: 25, byItem: { peach: 'syrup-peach', strawberry: 'syrup-strawberry' } }]),
+  rule('Ice Tea Sweetner', '*', [{ type: 'add', qty: 20, byItem: { peach: 'syrup-peach', strawberry: 'syrup-strawberry' } }]),
   rule('Croissant', 'Chocolate', [{ type: 'add', qty: 1, ingredientId: 'kit-chocolate-croissant' }]),
   rule('Croissant', 'Almond', [{ type: 'add', qty: 1, ingredientId: 'kit-almond-croissant' }]),
   rule('Croissant', 'Raisin/Cinnamon Swirl', [{ type: 'add', qty: 1, ingredientId: 'kit-cinnamon-swirl' }]),
@@ -242,14 +242,27 @@ export const BUNDLES: [string, string][] = [
 ];
 export const BEAN_BAGS = ['Brazil 250g', 'Ethiopia 250g'];
 
+/** Ice tea batch: 20 g tea in 1.5 L water, then 7.5 pumps (75 ml, pump = 10 ml) of syrup. */
+export const ICE_TEA_G = 20;
+export const ICE_TEA_ML = 1500;
+export const ICE_TEA_SYRUP_ML = 75;
+/** Take-away ice tea is 280 ml, 50 ml less than dine-in: negative take-away lines take the difference off. */
+export const TAKEAWAY_TEA: Record<string, { ingredientId: string; qty: number }[]> = {
+  'Shaken Ice Tea (Peach)': [{ ingredientId: 'tea-peach', qty: -ICE_TEA_G * 50 / ICE_TEA_ML }, { ingredientId: 'syrup-peach', qty: -ICE_TEA_SYRUP_ML * 50 / ICE_TEA_ML }],
+  'Shaken Ice Tea (Strawberry/Kiwi)': [{ ingredientId: 'tea-strawberry-kiwi', qty: -ICE_TEA_G * 50 / ICE_TEA_ML }, { ingredientId: 'syrup-strawberry', qty: -ICE_TEA_SYRUP_ML * 50 / ICE_TEA_ML }],
+};
+
 /** Recipes set exactly by Rimma. Replace whatever Loyverse has. */
 export const FIXED_RECIPES: Record<string, RecipeLine[]> = {
   'Hibiscus Iced': [{ ingredientId: 'hibiscus-flowers', qty: 9.6 }, { ingredientId: 'syrup-sugar', qty: 36 }],
   'Hibiscus Fizz': [{ recipeOf: 'Hibiscus Iced', qty: 0.1 }, { ingredientId: 'tonic-water', qty: 100 }, { ingredientId: 'lemon-squash', qty: 30 }, { ingredientId: 'syrup-hazelnut', qty: 10 }],
-  'Matcha Grey': [{ ingredientId: 'milk-coconut', qty: 250, role: 'milk' }, { ingredientId: 'matcha', qty: 3 }, { ingredientId: 'tea-earl-grey', qty: 3 }, { ingredientId: 'condensed-milk', qty: 12 }],
+  // Base: 1 L coconut milk + 10 g earl grey + 65 g condensed milk (about 1 L). A serving is 200 ml of base + 3 g matcha.
+  'Matcha Grey': [{ ingredientId: 'milk-coconut', qty: 200, role: 'milk' }, { ingredientId: 'matcha', qty: 3 }, { ingredientId: 'tea-earl-grey', qty: 2 }, { ingredientId: 'condensed-milk', qty: 13 }],
   'Salted Brownie': [{ ingredientId: 'kit-brownie', qty: 1 }, { ingredientId: 'ice-cream', qty: 60 }],
-  'Shaken Ice Tea (Peach)': [{ ingredientId: 'tea-peach', qty: 4 }],
-  'Shaken Ice Tea (Strawberry/Kiwi)': [{ ingredientId: 'tea-strawberry-kiwi', qty: 4 }],
+  // Batch: 20 g tea + 1.5 L water + 7.5 pumps (75 ml) syrup. A serving is 330 ml dine-in, 280 ml take-away (the take-away
+  // lines in TAKEAWAY_TEA take the difference off). The sweetener (2 pumps) is the "Ice Tea Sweetner" choice.
+  'Shaken Ice Tea (Peach)': [{ ingredientId: 'tea-peach', qty: ICE_TEA_G * 330 / ICE_TEA_ML }, { ingredientId: 'syrup-peach', qty: ICE_TEA_SYRUP_ML * 330 / ICE_TEA_ML }],
+  'Shaken Ice Tea (Strawberry/Kiwi)': [{ ingredientId: 'tea-strawberry-kiwi', qty: ICE_TEA_G * 330 / ICE_TEA_ML }, { ingredientId: 'syrup-strawberry', qty: ICE_TEA_SYRUP_ML * 330 / ICE_TEA_ML }],
   'Breakfast Set': [],
   '+ Size cold drink': [],
 };

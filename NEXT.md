@@ -115,10 +115,22 @@ function, Portal Deliveries page.
 18 g; Colombia (Filter) removed (now Ethiopia Sidamo (Filter) = Sidamo beans); nitro 0.33 cartridge. Live data changes only when the owner presses
 "Update now" on the Portal Recipes page (src/lib/recipeUpdate.ts). Step 2 built (milk 214 ml, take-away Latte family and Cappuccino Large 322 ml, Flat White Large 214,
 + Size cold drink via the Matcha or Coffee choice, Spanish Latte condensed 25/35 g; same Update now button;
-Matcha Grey and Babyccino keep their own milk). Still to build, in order: 3) retail bags
+Matcha Grey and Babyccino keep their own milk). Step 2b built: Matcha Grey 200/2/13/3, shaken ice tea
+from the batch (dine-in 330 ml, take-away 280 ml, sweetener 20 ml). Still to build, in order: 3) retail bags
 (4+ same origin on a receipt come from counted stock), 4) roast detection (+4 kg between counts),
 5) cold brew 180 g question in the APP (needs the LIVE Page.html and Bar count code from Arsen),
 6) list of choices with no rule (exists), "sold more than was counted" text.
+
+**REMIND ARSEN: CHECK IN THE SHOP (he said "about" / "approximately", 9 Nov).** Numbers the recipes use but he is not sure of:
+- Cold brew: 180 g Ethiopia makes about 2.7 L; a serving is about 330 ml (so about 22 g).
+- Nitro: one cartridge makes about 1 L (so 0.33 a serving).
+- Matcha Grey: base is 1 L coconut milk + 10 g earl grey + 65 g condensed milk; we ASSUME it makes about 1 L, so a
+  200 ml serving = 200 ml coconut milk, 2 g tea, 13 g condensed milk (+ 3 g matcha, exact).
+- Ice tea batch: 20 g tea + 1.5 L water + 7.5 pumps syrup; we ASSUME 1 pump = 10 ml (75 ml syrup) and the batch = 1.5 L.
+  A serving is about 330 ml dine-in and about 280 ml take-away; sweetener = 2 pumps (20 ml, if 1 pump = 10 ml).
+- Ice tea "+ Size cold drink": about 100 ml more of the same tea (1.33 g tea, 5 ml syrup). Open: any extra sweetener pumps?
+- Roast: "about once a week", typical roast size not yet given.
+- Syrup pump = 10 ml (used in Extra Pump rules too): never confirmed.
 
 1. **Order rules: one source.** The Google Sheet's Rules tab (when to order what, per supplier)
    does not match the Portal's own copy of the rules. The Portal should read the suppliers, rules

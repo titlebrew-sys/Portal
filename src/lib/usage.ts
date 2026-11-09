@@ -3,7 +3,7 @@
  * millilitres and pieces of ingredients, each with a plain reason that can be shown.
  */
 import type { Ingredient, ModifierEffect, ModifierRule, Receipt, Recipe, RecipeLine, SaleLine, SaleModifier } from '../types';
-import { SIZE_COLD_DRINK, SIZE_EXTRAS, norm } from './catalog';
+import { ICE_TEA_G, ICE_TEA_ML, ICE_TEA_SYRUP_ML, SIZE_COLD_DRINK, SIZE_EXTRAS, norm } from './catalog';
 
 export interface Use {
   ingredientId: string;
@@ -203,8 +203,10 @@ function addSizeExtras(r: Receipt, rows: LineUsage[]) {
     const per = (id: string | undefined, q: number, why: string) => { if (id && q) row.uses.push({ ingredientId: id, qty: q * n * row.qty * sign, why }); };
     const find = (prefix: string) => row.uses.find((u) => u.ingredientId.startsWith(prefix))?.ingredientId;
     const why = '+ Size cold drink';
-    if (x.tea) per(find('tea-'), x.tea, `${why}: one more serving`);
-    if (x.pumps) per(find('syrup-'), x.pumps * 10, `${why}: 2 more pumps of sweetener`);
+    if (x.teaMl) {
+      per(find('tea-'), ICE_TEA_G * x.teaMl / ICE_TEA_ML, `${why}: 100 ml more of the same tea`);
+      per(find('syrup-'), ICE_TEA_SYRUP_ML * x.teaMl / ICE_TEA_ML, `${why}: syrup in 100 ml more tea`);
+    }
   }
 }
 

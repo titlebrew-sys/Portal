@@ -35,7 +35,7 @@ describe('starting recipes from Loyverse with Rimma’s corrections', () => {
     expect(uses('Fizzie')['syrup-sugar']).toBeUndefined();
     expect(uses('Mocha Belgian')['condensed-milk']).toBe(15);
     expect(uses('Bumble')).toEqual({ 'bean-brazil': 18, 'orange-juice': 200 }); // dried orange removed
-    expect(uses('Shaken Ice Tea (Peach)')).toEqual({ 'tea-peach': 4 });
+    expect(uses('Shaken Ice Tea (Peach)')).toEqual({ 'tea-peach': 4.4, 'syrup-peach': 16.5 }); // 330 ml of the batch
     expect(uses('Hibiscus Fizz')).toEqual({ 'hibiscus-flowers': 0.96, 'syrup-sugar': 3.6, 'tonic-water': 100, 'lemon-squash': 30, 'syrup-hazelnut': 10 });
     expect(uses('Brazil 250g')).toEqual({});
     expect(uses('Salted Brownie')).toEqual({ 'kit-brownie': 1, 'ice-cream': 60 });
@@ -102,8 +102,11 @@ describe('acceptance: exact ingredients for known sales', () => {
       'bean-brazil': 18, 'milk-full-fat': 214, 'cup-8oz': 1, 'lid-flip': 1,
     });
   });
-  it('Shaken ice tea: syrup only with sweetener', () => {
-    expect(uses('Shaken Ice Tea (Peach)', [{ group: 'Ice Tea Sweetner', option: 'Yes' }])).toEqual({ 'tea-peach': 4, 'syrup-peach': 25 });
+  it('Shaken ice tea: batch share plus 2 pumps sweetener; take-away is 280 ml', () => {
+    expect(uses('Shaken Ice Tea (Peach)', [{ group: 'Ice Tea Sweetner', option: 'Yes' }])).toEqual({ 'tea-peach': 4.4, 'syrup-peach': 36.5 });
+    const take = uses('Shaken Ice Tea (Peach)', [{ group: 'Ice Tea Sweetner', option: 'Yes' }], true);
+    expect(take['tea-peach']).toBeCloseTo(3.733, 3);
+    expect(take['syrup-peach']).toBeCloseTo(34, 3);
   });
 });
 
@@ -153,8 +156,14 @@ describe('live update with Arsen answers', () => {
     expect(by('Cold Brew')).toBeUndefined();
     expect(by('Nitro Cold Brew')!.lines).toEqual([{ ingredientId: 'nitro-cartridge', qty: 0.33 }]);
   });
+  it('Matcha Grey: 200 ml of the coconut base, 3 g matcha', () => {
+    const old = { id: 'mg', itemName: 'Matcha Grey', lines: [{ ingredientId: 'milk-coconut', qty: 250, role: 'milk' as const }], takeaway: [], ignoreGroups: [], note: null, updatedBy: '', updatedAt: '' };
+    const [r] = updateRecipes([old], 'Arsen');
+    expect(r.lines).toEqual([{ ingredientId: 'milk-coconut', qty: 200, role: 'milk' }, { ingredientId: 'matcha', qty: 3 }, { ingredientId: 'tea-earl-grey', qty: 2 }, { ingredientId: 'condensed-milk', qty: 13 }]);
+    expect(updateRecipes([r], 'Arsen')).toEqual([]);
+  });
   it('adds the missing choice rules once', () => {
-    expect(updateRules([], 'Arsen').length).toBe(9);
+    expect(updateRules([], 'Arsen').length).toBe(10);
     expect(updateRules(START_MODIFIER_RULES, 'Arsen')).toEqual([]);
   });
 });
