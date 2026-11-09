@@ -167,6 +167,7 @@ const MILKS: [string, string][] = [
 ];
 const BEANS: [string, string][] = [
   ['Brazil', 'bean-brazil'], ['Ethiopia', 'bean-ethiopia'], ['Colombia (Filter)', 'bean-colombia-filter'], ['Colombia (Watermelon)', 'bean-colombia-watermelon'],
+  ['Ethiopia Sidamo (Filter)', 'bean-sidamo'],
 ];
 const CLASSIC = ['Espresso', 'Long Black', 'Cappuccino', 'Flat White', 'Latte', 'Spanish Latte', 'Hibiscus', 'Affogato', 'Ice Long Black',
   'Iced Spanish Latte', 'Ice Latte', 'Matcha Latte', 'Ice Matcha Latte', 'Mocha Belgian'];

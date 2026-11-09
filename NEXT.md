@@ -16,6 +16,9 @@ Ideas offered: warn when an order is under free delivery / minimum (L's Boutique
 Beverages 150 AED) and suggest items near reorder level; note when close to 10 cases of coconut milk
 (1 free). Small fix: Suppliers tab, New Country Home cutoff typo "4p m".
 After rules: recipes, by asking Arsen questions item by item (Arsen: later).
+Recipes job ideas: a list of Loyverse choices (modifiers) the Portal has no rule for, so names like
+"Ethiopia Sidamo (Filter)" (9 Nov: fell back to Colombia filter beans) are caught early; clearer text
+when expected stock is below zero ("sold more than was counted").
 
 **Built 9 Nov (waiting for Arsen to paste and test):** LPO fix, own email for staff (Download LPO +
 Open email, manager keeps the Gmail draft), Delayed / Delivery cancelled in Deliveries. Also built: delayed items lower
