@@ -3,7 +3,7 @@
  * millilitres and pieces of ingredients, each with a plain reason that can be shown.
  */
 import type { Ingredient, ModifierEffect, ModifierRule, Receipt, Recipe, RecipeLine, SaleLine, SaleModifier } from '../types';
-import { ICE_TEA_G, ICE_TEA_ML, ICE_TEA_SYRUP_ML, SIZE_COLD_DRINK, SIZE_EXTRAS, norm } from './catalog';
+import { BEAN_BAG_GRAMS, BEAN_BAG_ORIGIN, BEAN_BAGS_FROM_STOCK, ICE_TEA_G, ICE_TEA_ML, ICE_TEA_SYRUP_ML, SIZE_COLD_DRINK, SIZE_EXTRAS, norm } from './catalog';
 
 export interface Use {
   ingredientId: string;
@@ -174,6 +174,7 @@ export function receiptUsage(book: RecipeBook, receipts: Receipt[]): LineUsage[]
       };
     });
     addSizeExtras(r, rows);
+    addBagsFromStock(book, rows, sign);
     // "+ Size cold drink" on take-away: one 12oz clear cup becomes a 16oz clear cup per size item.
     if (takeaway) {
       let sizes = r.lines.filter((l) => norm(l.itemName) === SIZE_COLD_DRINK).reduce((a, l) => a + l.qty, 0);
@@ -189,6 +190,25 @@ export function receiptUsage(book: RecipeBook, receipts: Receipt[]): LineUsage[]
     out.push(...rows);
   }
   return resolveSpread(out);
+}
+
+/**
+ * 250 g bean bags: 4 or more of the same beans on one receipt (1 kg or more) are one bigger bag
+ * filled from the counted bean stock. Fewer are shelf bags and use no stock.
+ */
+function addBagsFromStock(book: RecipeBook, rows: LineUsage[], sign: number) {
+  const bags = new Map<string, number>();
+  for (const row of rows) {
+    const id = BEAN_BAG_ORIGIN[norm(row.item)];
+    if (id) bags.set(id, (bags.get(id) ?? 0) + row.qty);
+  }
+  for (const row of rows) {
+    const id = BEAN_BAG_ORIGIN[norm(row.item)];
+    const n = id ? bags.get(id) ?? 0 : 0;
+    if (!id || n < BEAN_BAGS_FROM_STOCK) continue;
+    const why = `${n} bags of 250 g on one receipt (${fmt(n * BEAN_BAG_GRAMS)} g): filled from the counted ${name(book, id).toLowerCase()} stock`;
+    row.uses.push({ ingredientId: id, qty: BEAN_BAG_GRAMS * row.qty * sign, why: sign < 0 ? `Refund: ${why}` : why });
+  }
 }
 
 /** "+ Size cold drink": the iced drink on the receipt gets more milk, coffee, matcha, tea or syrup. */

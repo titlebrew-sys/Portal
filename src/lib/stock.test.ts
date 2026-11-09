@@ -5,6 +5,7 @@ import { currentLevel, isOver, snapshots, steps, type StockInputs } from './stoc
 import type { LineUsage } from './usage';
 
 const milk: Ingredient = { id: 'milk-full-fat', name: 'Full fat milk', unit: 'ml', countFrom: '1000*bar-full-fat-milk', limitPct: 5, note: null, active: true, sort: 0 };
+const brazil: Ingredient = { id: 'bean-brazil', name: 'Brazil beans', unit: 'g', countFrom: 'bar-brazil-beans', limitPct: 5, note: null, active: true, sort: 0 };
 const croissant: Ingredient = { id: 'kit-almond-croissant', name: 'Almond croissant', unit: 'pcs', countFrom: 'kit-almond-croissant', limitPct: 0, note: null, active: true, sort: 0 };
 const condensed: Ingredient = { id: 'condensed-milk', name: 'Condensed milk', unit: 'g', countFrom: '397*bar-condensed-milk-unopened-cans + 595.5*bar-condensed-milk-bottles', limitPct: 5, note: null, active: true, sort: 0 };
 
@@ -88,5 +89,27 @@ describe('deliveries not ordered (shop purchases)', () => {
     });
     const [s] = steps(milk, inp);
     expect([s.arrivedTotal, s.expected, s.difference]).toEqual([6000, 8000, 0]); // 2 L + 6 L bought = 8 L counted
+  });
+});
+
+describe('roasting: a big rise in a bean count is a new roast', () => {
+  const beans = (to: number, usedG = 1000) => inputs({
+    counts: [count('bar-brazil-beans', '2026-11-05', 2, 3000, '2026-11-05T17:00:00Z'), count('bar-brazil-beans', '2026-11-06', 1, to, '2026-11-06T12:00:00Z')],
+    usage: [use('2026-11-06T05:00:00Z', 'bean-brazil', usedG)],
+  });
+  it('a rise of more than 4 kg is added as a roast and the difference is zero', () => {
+    const [s] = steps(brazil, beans(9000)); // 3 kg - 1 kg used = 2 kg expected, 9 kg counted: +6 kg
+    expect(s.arrived).toEqual([{ at: '2026-11-06T12:00:00Z', qty: 7000, supplier: 'Roast', orderId: '', kind: 'roast' }]);
+    expect([s.arrivedTotal, s.expected, s.difference, s.over]).toEqual([7000, 9000, 0, false]);
+  });
+  it('a rise of 4 kg or less stays a difference', () => {
+    const [s] = steps(brazil, beans(7000)); // +4 kg exactly: not more than 4 kg
+    expect([s.arrived, s.expected, s.difference]).toEqual([[], 2000, 5000]);
+  });
+  it('a count that is lower than expected is never a roast; other ingredients are not touched', () => {
+    const [s] = steps(brazil, beans(1000));
+    expect([s.arrived, s.difference]).toEqual([[], -1000]);
+    const [m] = steps(milk, inputs({ counts: [count('bar-full-fat-milk', '2026-11-05', 2, 2, '2026-11-05T17:00:00Z'), count('bar-full-fat-milk', '2026-11-06', 1, 20, '2026-11-06T12:00:00Z')] }));
+    expect([m.arrived, m.difference]).toEqual([[], 18000]);
   });
 });

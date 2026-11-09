@@ -167,3 +167,45 @@ describe('live update with Arsen answers', () => {
     expect(updateRules(START_MODIFIER_RULES, 'Arsen')).toEqual([]);
   });
 });
+
+describe('retail bean bags (250 g)', () => {
+  const bags = (lines: [string, number][], over: Partial<Receipt> = {}): Receipt => {
+    const r = receipt(lines.map(([n]) => [n, []] as [string, SaleModifier[]]), over);
+    r.lines.forEach((l, i) => { l.qty = lines[i][1]; });
+    return r;
+  };
+  const total = (r: Receipt, id: string) => totalsByIngredient(receiptUsage(book, [r])).get(id) ?? 0;
+  it('1 to 3 bags of one origin are shelf bags and use no stock', () => {
+    expect(total(bags([['Brazil 250g', 1]]), 'bean-brazil')).toBe(0);
+    expect(total(bags([['Ethiopia 250g', 3]]), 'bean-ethiopia')).toBe(0);
+  });
+  it('4 or more bags of one origin (1 kg or more) come from the counted stock of that origin', () => {
+    expect(total(bags([['Brazil 250g', 4]]), 'bean-brazil')).toBe(1000);
+    expect(total(bags([['Ethiopia 250g', 6]]), 'bean-ethiopia')).toBe(1500);
+  });
+  it('bags on separate lines of one receipt add up per origin; different origins stay separate', () => {
+    const r = bags([['Brazil 250g', 2], ['Brazil 250g', 2], ['Ethiopia 250g', 2]]);
+    expect(total(r, 'bean-brazil')).toBe(1000);
+    expect(total(r, 'bean-ethiopia')).toBe(0);
+  });
+  it('bags are counted per receipt, not across receipts', () => {
+    const a = bags([['Brazil 250g', 2]], { number: 'A' });
+    const b = bags([['Brazil 250g', 2]], { number: 'B' });
+    expect(totalsByIngredient(receiptUsage(book, [a, b])).get('bean-brazil') ?? 0).toBe(0);
+  });
+  it('a refund of 4 or more bags gives the beans back; cancelled receipts use nothing', () => {
+    expect(total(bags([['Brazil 250g', 4]], { type: 'REFUND' }), 'bean-brazil')).toBe(-1000);
+    expect(total(bags([['Brazil 250g', 4]], { cancelled: true }), 'bean-brazil')).toBe(0);
+  });
+  it('shows a plain reason', () => {
+    const [row] = receiptUsage(book, [bags([['Brazil 250g', 4]])]);
+    expect(row.uses[0].why).toBe('4 bags of 250 g on one receipt (1000 g): filled from the counted brazil beans stock');
+  });
+  it('the live update adds the bag note once and leaves the bag recipe without ingredients', () => {
+    const bag = { id: 'b', itemName: 'Brazil 250g', lines: [], takeaway: [], ignoreGroups: [], note: 'Bag of beans for sale: not taken from bar bean stock.', updatedBy: '', updatedAt: '' };
+    const [r] = updateRecipes([bag], 'Arsen');
+    expect(r.lines).toEqual([]);
+    expect(r.note).toContain('4 or more bags');
+    expect(updateRecipes([r], 'Arsen')).toEqual([]);
+  });
+});

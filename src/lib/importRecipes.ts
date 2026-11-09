@@ -5,7 +5,7 @@
 import type { CountItem, Ingredient, Recipe, RecipeLine } from '../types';
 import { updateRecipes } from './recipeUpdate';
 import {
-  BEAN_BAGS, BUNDLES, COFFEE_DRINKS, COFFEE_GRAMS, COLD_BREWS, COLD_BREW_GRAMS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, FIXED_RECIPES, LOYVERSE_INGREDIENTS, SET_AMOUNTS, TAKEAWAY, norm,
+  BEAN_BAGS, BEAN_BAG_NOTE, BUNDLES, COFFEE_DRINKS, COFFEE_GRAMS, COLD_BREWS, COLD_BREW_GRAMS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, FIXED_RECIPES, LOYVERSE_INGREDIENTS, SET_AMOUNTS, TAKEAWAY, norm,
 } from './catalog';
 
 export interface LyItem {
@@ -119,7 +119,7 @@ export function importRecipes(items: LyItem[], ingredients: Ingredient[], by = '
       ignoreGroups = ['Classic Coffee'];
     }
     if (norm(it.name) === norm('Breakfast Set')) note = 'Uses the full recipe of the coffee chosen plus 1 croissant of the type chosen.';
-    if (has(BEAN_BAGS, it.name)) { lines = []; note = 'Bag of beans for sale: not taken from bar bean stock.'; }
+    if (has(BEAN_BAGS, it.name)) { lines = []; note = BEAN_BAG_NOTE; }
 
     recipes.push({
       id: it.id, itemName: it.name, lines, takeaway: TAKEAWAY.get(norm(it.name))?.map((p) => ({ ...p })) ?? [],

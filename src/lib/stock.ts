@@ -7,7 +7,7 @@
  */
 import type { CountItem, CountRow, Ingredient, Order, Rule, Shift, Supplier, WasteRow } from '../types';
 import { parseCountFrom } from './ordering';
-import { norm } from './catalog';
+import { ROAST_RISE_G, isBeanStock, norm } from './catalog';
 import type { LineUsage } from './usage';
 
 export interface Snapshot {
@@ -19,7 +19,14 @@ export interface Snapshot {
   parts: { itemId: string; name: string; qty: number; factor: number }[];
 }
 
-export interface Arrival { at: string; qty: number; supplier: string; orderId: string }
+export interface Arrival {
+  at: string;
+  qty: number;
+  supplier: string;
+  orderId: string;
+  /** "roast": not a delivery. A bean count went up a lot, so a new roast is assumed (nobody enters roasts). */
+  kind?: 'roast';
+}
 export interface WasteBit { at: string; qty: number; item: string; reason: string }
 export interface UseBit { at: string; qty: number; receipt: string; item: string; choices: string; why: string; refund: boolean }
 
@@ -157,11 +164,18 @@ export function steps(ing: Ingredient, inp: StockInputs): Step[] {
   for (let i = 1; i < snaps.length; i++) {
     const from = snaps[i - 1];
     const to = snaps[i];
-    const arrived = arrivals(ing, inp, from.at, to.at);
+    let arrived = arrivals(ing, inp, from.at, to.at);
     const used = usedFor(ing, inp, from.at, to.at);
     const waste = wasteFor(ing, inp, from.at, to.at);
-    const expected = r3(from.value + sum(arrived) - sum(used) - sum(waste));
-    const difference = r3(to.value - expected);
+    let expected = r3(from.value + sum(arrived) - sum(used) - sum(waste));
+    let difference = r3(to.value - expected);
+    // Roasting: nobody enters it. A bean count that rises by more than 4 kg since the last count is a new roast
+    // added to stock; what the count shows above the expected amount is the roast. Smaller rises stay differences.
+    if (isBeanStock(ing.id) && to.value - from.value > ROAST_RISE_G && difference > 0) {
+      arrived = [...arrived, { at: to.at, qty: difference, supplier: 'Roast', orderId: '', kind: 'roast' }];
+      expected = r3(expected + difference);
+      difference = 0;
+    }
     out.push({
       from, to, arrived, used, waste, arrivedTotal: sum(arrived), usedTotal: sum(used), wasteTotal: sum(waste), expected, counted: to.value,
       difference, pct: expected ? Math.round((difference / expected) * 1000) / 10 : null, over: isOver(ing, difference, expected, to.value),

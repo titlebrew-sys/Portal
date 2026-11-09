@@ -241,6 +241,12 @@ export const BUNDLES: [string, string][] = [
   ['Coffee and Brownie', 'kit-brownie'], ['Coffee and Truffles', 'kit-coconut-truffles'],
 ];
 export const BEAN_BAGS = ['Brazil 250g', 'Ethiopia 250g'];
+/** A 250 g shelf bag. Loyverse sells every bag size as 250 g items, so the receipt decides where the beans come from. */
+export const BEAN_BAG_GRAMS = 250;
+/** 4 or more bags of the same origin on one receipt (1 kg or more) are filled from the counted shop stock; fewer come off the shelf. */
+export const BEAN_BAGS_FROM_STOCK = 4;
+export const BEAN_BAG_ORIGIN: Record<string, string> = { [norm('Brazil 250g')]: 'bean-brazil', [norm('Ethiopia 250g')]: 'bean-ethiopia' };
+export const BEAN_BAG_NOTE = 'Shelf bag: no bean stock used. 4 or more bags of the same beans on one receipt (1 kg or more) are filled from the counted bean stock.';
 
 /** Ice tea batch: 20 g tea in 1.5 L water, then 7.5 pumps (75 ml, pump = 10 ml) of syrup. */
 export const ICE_TEA_G = 20;
@@ -275,3 +281,8 @@ export const SET_AMOUNTS: [string, string, number][] = [
   ['Ice Belgian Mocha', 'condensed-milk', 15],
   ['Bumble', 'orange-juice', 200],
 ];
+
+/** A bean count that goes up by more than this many grams since the last count is taken as a new roast added to stock. */
+export const ROAST_RISE_G = 4000;
+/** Ingredient ids that are beans counted in the shop stock (roasts are added to these). */
+export const isBeanStock = (ingredientId: string) => ingredientId.startsWith('bean-');

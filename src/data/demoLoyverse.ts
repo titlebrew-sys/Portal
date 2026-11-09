@@ -40,6 +40,7 @@ const RAW = [
   item('Breakfast Set', 'Breakfast'),
   item('Coffee and Brownie', 'Bundles', [['Coffee', 18]]),
   item('Brazil 250g', 'Beans'),
+  item('Ethiopia 250g', 'Beans'),
   item('Avocado Chicken Sandwich', 'Sandwich'),
   item('Falafel Sandwhich', 'Sandwich'),
   item('Almond Croissant', 'Desserts'),

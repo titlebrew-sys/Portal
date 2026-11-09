@@ -5,7 +5,7 @@
  */
 import type { Ingredient, ModifierRule, Recipe } from '../types';
 import {
-  COFFEE_GRAMS, COLD_BREWS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, MILK_EXCEPTIONS, MILK_LARGE, MILK_ML, NITRO_PER_SERVING, SPANISH_CONDENSED,
+  BEAN_BAGS, BEAN_BAG_NOTE, COFFEE_GRAMS, COLD_BREWS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, MILK_EXCEPTIONS, MILK_LARGE, MILK_ML, NITRO_PER_SERVING, SPANISH_CONDENSED,
   SPANISH_CONDENSED_TAKEAWAY, START_MODIFIER_RULES, FIXED_RECIPES, TAKEAWAY_TEA, isHotLatte, norm,
 } from './catalog';
 
@@ -32,6 +32,11 @@ export function updateRecipes(recipes: Recipe[], by: string): Recipe[] {
   const out: Recipe[] = [];
   for (const r of recipes) {
     let changed = false;
+    // Shelf bean bags: the note explains the 4 bags (1 kg) rule
+    if (has(BEAN_BAGS, r.itemName)) {
+      if (r.note !== BEAN_BAG_NOTE) out.push({ ...r, lines: [], note: BEAN_BAG_NOTE, updatedBy: by, updatedAt: at });
+      continue;
+    }
     let lines = r.lines.map((l) => {
       if (l.role !== 'coffee' || has(COLD_BREWS, r.itemName)) return l;
       const qty = has(FILTER_DRINKS, r.itemName) ? FILTER_GRAMS : COFFEE_GRAMS;
