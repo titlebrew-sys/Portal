@@ -223,6 +223,12 @@
   .or-dl { display: block; text-align: center; padding: 12px; border-radius: 24px; background: var(--ordbg); color: var(--ord); font-weight: 800; text-decoration: none; }
   .or-step { font-size: 12px; font-weight: 700; color: var(--muted); }
   .or-more { height: 48px; border-radius: 12px; border: 1px dashed var(--field); background: transparent; color: var(--ink); font-size: 15px; font-weight: 600; }
+
+  /* Cold brew question (Bar, under Ethiopia beans) */
+  .cb { flex: 1 1 100%; border-top: 1px dashed var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .cb-q { font-size: 14px; font-weight: 700; color: var(--ink); }
+  .cb-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cb.missing { border: 2px solid #B42318; background: #FEF3F2; border-radius: 10px; padding: 8px; }
 </style>
 </head>
 <body>
@@ -437,7 +443,7 @@
       if (name === 'Weekly') st = h.status.Weekly;
       else {
         var dn = (h.done || {})[name + S.shift];
-        if (dn && dn.total && dn.counted >= dn.total) { st = 'Done \u2713 ' + dn.by + ', ' + dn.at; cls = ' st-done'; }
+        if (dn && dn.total && dn.counted >= dn.total) { st = 'Done ✓ ' + dn.by + ', ' + dn.at; cls = ' st-done'; }
         else if (dn) { st = dn.counted + ' of ' + dn.total + ' counted. ' + dn.by + ', ' + dn.at; cls = h.nowMin >= due ? ' st-late' : ' st-part'; }
         else if (h.nowMin >= due) { st = 'Not done'; cls = ' st-late'; }
         else st = 'Not started';
@@ -468,6 +474,7 @@
         sec.items.forEach(function (it) {
           it.fields.forEach(function (f) { S.loaded[k(it.name, f.key)] = f.value; });
           if (it.showExp) { S.loaded[k(it.name, 'expOld')] = it.expOld; S.loaded[k(it.name, 'expNew')] = it.expNew; }
+          if (it.cbAsk) S.loaded[k(it.name, 'cb')] = it.cb || '';
         });
       });
       for (var key in S.loaded) S.values[key] = S.loaded[key];
@@ -498,10 +505,11 @@
     i.disabled = locked;
     i.setAttribute('aria-label', item.name + ' ' + f.label);
     i.oninput = function () { i.classList.remove('missing'); i.classList.remove('check'); setVal(item.name, f.key, i.value); };
-    S.inputs.push({ el: i, item: item.name, key: f.key, sec: item.sec });
+    if (f.type === 'num') S.inputs.push({ el: i, item: item.name, key: f.key, sec: item.sec });
+    else (S.optInputs = S.optInputs || []).push({ el: i, item: item.name, key: f.key, sec: item.sec });
     if (!item.step) return i;
     var w = el('div', 'stepper');
-    var minus = el('button', 'stp', '\u2212'); minus.type = 'button'; minus.disabled = locked;
+    var minus = el('button', 'stp', '−'); minus.type = 'button'; minus.disabled = locked;
     minus.setAttribute('aria-label', 'One less ' + item.name);
     var plus = el('button', 'stp', '+'); plus.type = 'button'; plus.disabled = locked;
     plus.setAttribute('aria-label', 'One more ' + item.name);
@@ -516,6 +524,38 @@
     plus.onclick = function () { bump(1); };
     w.appendChild(minus); w.appendChild(i); w.appendChild(plus);
     return w;
+  }
+
+  // Cold brew question (Bar, under Ethiopia beans)
+  var cbEls = {};
+  function cbBox(it, locked) {
+    var box = el('div', 'cb'); cbEls[it.name] = box;
+    box.appendChild(el('div', 'cb-q', 'Cold brew made? (180 g ' + it.name.replace(/ beans$/i, '') + ')'));
+    var row = el('div', 'cb-btns'), btns = [];
+    [['Yes', 'Yes, 180 g used'], ['Not made', 'Not made']].forEach(function (o) {
+      var b = el('button', 'h-opt' + (S.values[k(it.name, 'cb')] === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = locked;
+      b.onclick = function () {
+        setVal(it.name, 'cb', o[0]); box.classList.remove('missing');
+        btns.forEach(function (x) { x.classList.toggle('on', x === b); });
+      };
+      btns.push(b); row.appendChild(b);
+    });
+    box.appendChild(row);
+    return box;
+  }
+  function cbItem() {
+    var found = null;
+    if (S.data) S.data.sections.forEach(function (sec) { sec.items.forEach(function (it) { if (it.cbAsk && !found) found = it; }); });
+    return found;
+  }
+  function cbValue() { var it = cbItem(); return it ? (S.values[k(it.name, 'cb')] || '') : ''; }
+  function cbCheck() {
+    var it = cbItem();
+    if (!it || cbValue()) return true;
+    var box = cbEls[it.name]; if (box) box.classList.add('missing');
+    $('saveMsg').className = 'msg err'; $('saveMsg').textContent = 'Answer the cold brew question under ' + it.name + '.';
+    if (box) reveal(it.sec, box);
+    return false;
   }
 
   // Kitchen sections open one at a time
@@ -541,7 +581,7 @@
   }
 
   function drawList() {
-    var d = S.data, L = $('list'); L.innerHTML = ''; S.inputs = []; S.selects = []; S.acc = {};
+    var d = S.data, L = $('list'); L.innerHTML = ''; S.inputs = []; S.optInputs = []; S.selects = []; S.acc = {};
     if (d.night) L.appendChild(el('div', 'note-box warn', 'Counting is closed from 11pm until 4am. You can look but not change.'));
     else if (d.locked) L.appendChild(el('div', 'note-box warn', 'Shift 1 locked at 5pm. You can look but not change.'));
     if (S.area === 'Weekly') L.appendChild(el('div', 'note-box', 'Count once a week. Saving also sets today as the count date.'));
@@ -565,7 +605,7 @@
     }
     if (S.area === 'Kitchen' && !d.locked) {
       L.appendChild(el('div', 'note-box', (d.expLocked ? 'Expiry dates lock at 5pm with Shift 1.' : 'Expiry dates are filled in for you. Only change them if the package says otherwise.') + ' Count sections in any order.' +
-        (S.shift === '2' ? ' Choose Cleared? for old baked croissants and for old stock that expires today, is damaged or not sold. Old stock still in date can stay without it.' : '')));
+        (S.shift === '2' ? ' At closing, count what is LEFT on the shelf. Anything thrown away (expired, damaged or not sold) goes under Thrown away, with the reason. Old baked croissants are thrown away at closing.' : '')));
     }
     var accordion = S.area === 'Kitchen' && d.sections.length > 1;
     var firstOpen = null;
@@ -607,6 +647,7 @@
           ctl.appendChild(numInput(it, it.fields[0], d.locked, false));
           ctl.appendChild(el('span', 'unit', it.unit));
           card.appendChild(ctl);
+          if (it.cbAsk) card.appendChild(cbBox(it, d.locked));
           host.appendChild(card);
           return;
         }
@@ -714,7 +755,7 @@
     for (var t in S.acc || {}) {
       var st = c.bySec[t], a = S.acc[t];
       var complete = st.done === st.total;
-      a.cnt.textContent = complete ? 'Done \u2713' : st.done + ' of ' + st.total;
+      a.cnt.textContent = complete ? 'Done ✓' : st.done + ' of ' + st.total;
       a.wrap.classList.toggle('done', complete);
     }
     var miss = c.total - c.done;
@@ -769,15 +810,39 @@
       reveal(fb.sec, firstBad);
       return;
     }
+    if (!cbCheck()) return;
+    var badThrown = false;
+    S.inputs.concat(S.optInputs || []).forEach(function (x) {
+      if (x.key !== 's2t') return;
+      var v = String(S.values[k(x.item, 's2t')] || '').trim();
+      var bad = v !== '' && !/^\d+([.,]\d+)?$/.test(v);
+      x.el.classList.toggle('missing', bad);
+      if (bad && !badThrown) { badThrown = true; err('Thrown away: type a number for ' + x.item + ', or leave it empty.'); reveal(x.sec, x.el); }
+    });
+    if (badThrown) return;
+    var oldBaked = [];
+    if (S.area === 'Kitchen' && S.shift === '2') {
+      S.data.sections.forEach(function (sec) {
+        sec.items.forEach(function (it) {
+          if (it.kind === 'pair' && Number(String(S.values[k(it.name, 's2a')] || '0').replace(',', '.')) > 0) oldBaked.push(it);
+        });
+      });
+    }
+    if (oldBaked.length) {
+      err('Old baked croissants are thrown away at closing. Put them under Thrown away and set Old baked left to 0: ' + oldBaked.map(function (it) { return it.name; }).join(', ') + '.');
+      var ob = S.inputs.filter(function (x) { return x.item === oldBaked[0].name && x.key === 's2a'; })[0];
+      if (ob) { ob.el.classList.add('missing'); reveal(ob.sec, ob.el); }
+      return;
+    }
     var noReason = [];
     S.selects.forEach(function (x) {
-      var old = Number(String(S.values[k(x.item, 's2a')] || '0').replace(',', '.'));
-      var bad = old > 0 && !S.values[k(x.item, 'rsn')] && mustClear(x.it);
+      var thr = Number(String(S.values[k(x.item, 's2t')] || '0').replace(',', '.'));
+      var bad = thr > 0 && !S.values[k(x.item, 'rsn')];
       x.el.classList.toggle('missing', bad);
       if (bad) noReason.push(x);
     });
     if (noReason.length) {
-      err('Choose a reason for: ' + noReason.map(function (x) { return x.item; }).join(', ') + '.');
+      err('Choose why it was thrown away for: ' + noReason.map(function (x) { return x.item; }).join(', ') + '.');
       reveal(noReason[0].sec, noReason[0].el);
       return;
     }
@@ -817,7 +882,7 @@
     S.busy = true; $('saveBtn').disabled = true; $('saveBtn').textContent = 'Saving...';
     $('saveMsg').className = 'msg'; $('saveMsg').textContent = '';
     var ansList = Object.keys(answers).map(function (n) { return { item: n, answer: answers[n].answer, confirmed: answers[n].confirmed }; });
-    call('spSave', [S.token, S.area, S.shift, list, ansList], function (res) {
+    call('spSave', [S.token, S.area, S.shift, list, ansList, cbValue()], function (res) {
       S.busy = false; $('saveBtn').disabled = false; $('saveBtn').textContent = 'Save counts';
       if (!res.ok) { $('saveMsg').className = 'msg err'; $('saveMsg').textContent = res.msg; return; }
       store(draftKey(), null);
@@ -902,7 +967,7 @@
     var lateText = late.length ? ' Delayed, still coming: ' + late.join(', ') + '.' : '';
     if (pend.length) { sub.textContent = pend.length + ' of ' + n + ' to confirm: ' + pend.join(', ') + '.' + lateText; t.className = 'area dv'; }
     else if (late.length) { sub.textContent = lateText.trim(); t.className = 'area dv'; }
-    else { sub.textContent = 'All ' + n + ' confirmed \u2713'; t.className = 'area dv ok'; }
+    else { sub.textContent = 'All ' + n + ' confirmed ✓'; t.className = 'area dv ok'; }
   }
   function openDeliveries() {
     show('deliveriesScreen');
@@ -926,7 +991,7 @@
       else if (s.state === 'cancelled') headText = s.items.every(function (l) { return l.arrived === 0; })
         ? 'Delivery cancelled (' + s.confirmedBy + ', ' + s.confirmedAt + ')'
         : 'Confirmed ' + s.confirmedAt + ' by ' + s.confirmedBy + ', the rest is not coming';
-      else if (s.confirmedAt) headText = 'Confirmed ' + s.confirmedAt + ' by ' + s.confirmedBy + ' \u2713';
+      else if (s.confirmedAt) headText = 'Confirmed ' + s.confirmedAt + ' by ' + s.confirmedBy + ' ✓';
       head.appendChild(el('span', '', headText));
       card.appendChild(head);
       var inputs = [];
@@ -937,7 +1002,7 @@
         inputs.forEach(function (x) {
           var diff = Number(String(x.i.value).replace(',', '.')) !== x.l.ordered;
           x.o.className = 'o' + (diff ? ' diff' : '');
-          x.o.textContent = 'Ordered ' + x.l.ordered + (x.l.delayed ? ' (incl. ' + x.l.delayed + ' delayed from yesterday)' : '') + (x.l.status === 'Delayed' && x.l.arrived > 0 ? ' \u00b7 ' + x.l.arrived + ' came earlier' : '') + (diff ? ' \u00b7 ' + (x.i.value === '' ? '?' : x.i.value) + ' came' : '');
+          x.o.textContent = 'Ordered ' + x.l.ordered + (x.l.delayed ? ' (incl. ' + x.l.delayed + ' delayed from yesterday)' : '') + (x.l.status === 'Delayed' && x.l.arrived > 0 ? ' · ' + x.l.arrived + ' came earlier' : '') + (diff ? ' · ' + (x.i.value === '' ? '?' : x.i.value) + ' came' : '');
         });
       };
       s.items.forEach(function (l) {
@@ -953,7 +1018,7 @@
         i.setAttribute('aria-label', l.item + ' arrived');
         i.oninput = relabel;
         var bump = function (dd) { var v = Number(String(i.value).replace(',', '.')) || 0; i.value = String(Math.max(0, Math.round((v + dd) * 100) / 100)); relabel(); };
-        var minus = el('button', 'stp', '\u2212'); minus.type = 'button'; minus.onclick = function () { bump(-1); };
+        var minus = el('button', 'stp', '−'); minus.type = 'button'; minus.onclick = function () { bump(-1); };
         var plus = el('button', 'stp', '+'); plus.type = 'button'; plus.onclick = function () { bump(1); };
         minus.setAttribute('aria-label', 'One less ' + l.item); plus.setAttribute('aria-label', 'One more ' + l.item);
         w.appendChild(minus); w.appendChild(i); w.appendChild(plus);
@@ -1015,8 +1080,8 @@
     if (!d.extras.length) L.appendChild(el('div', 'dv-extra', 'Nothing yet today.'));
     d.extras.forEach(function (x) {
       var c = el('div', 'dv-extra');
-      c.appendChild(el('b', '', x.type + (x.supplier ? ': ' + x.supplier : '') + (x.paid !== '' && x.paid !== null ? ' \u00b7 AED ' + x.paid : '')));
-      c.appendChild(document.createTextNode(x.items.map(function (i) { return i.qty + ' ' + i.unit + ' ' + i.item; }).join(', ') + ' \u00b7 ' + x.why + (x.note ? ' \u00b7 ' + x.note : '') + ' \u00b7 ' + x.by + ', ' + x.at));
+      c.appendChild(el('b', '', x.type + (x.supplier ? ': ' + x.supplier : '') + (x.paid !== '' && x.paid !== null ? ' · AED ' + x.paid : '')));
+      c.appendChild(document.createTextNode(x.items.map(function (i) { return i.qty + ' ' + i.unit + ' ' + i.item; }).join(', ') + ' · ' + x.why + (x.note ? ' · ' + x.note : '') + ' · ' + x.by + ', ' + x.at));
       L.appendChild(c);
     });
     var add = el('button', 'dv-add', '+ Add something that arrived'); add.type = 'button';
@@ -1064,7 +1129,7 @@
         q.value = ln.qty; q.setAttribute('aria-label', 'Amount'); q.oninput = function () { ln.qty = q.value; };
         var unit = el('span', 'unit', unitOf[ln.item] || '');
         row.appendChild(s); row.appendChild(q); row.appendChild(unit);
-        if (A.lines.length > 1) { var x = el('button', 'stp', '\u00d7'); x.type = 'button'; x.setAttribute('aria-label', 'Remove'); x.onclick = function () { A.lines.splice(idx, 1); draw(); }; row.appendChild(x); }
+        if (A.lines.length > 1) { var x = el('button', 'stp', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Remove'); x.onclick = function () { A.lines.splice(idx, 1); draw(); }; row.appendChild(x); }
         F.appendChild(row);
       });
       var more = el('button', 'dv-link', '+ Another item'); more.type = 'button';
@@ -1152,7 +1217,7 @@
     var head = el('div', 'or-head');
     head.appendChild(el('b', '', s.name));
     head.appendChild(el('span', '', s.status));
-    if (s.done) head.appendChild(el('span', 'or-done', '\u2713 ' + s.done));
+    if (s.done) head.appendChild(el('span', 'or-done', '✓ ' + s.done));
     card.appendChild(head);
     var cols = el('div', 'or-cols');
     cols.appendChild(el('span', 'c1', 'Item, count, suggested'));
