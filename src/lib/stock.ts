@@ -5,9 +5,9 @@
  * For each count (Shift 1, Shift 2 or weekly) the window is the time between the previous
  * count and this one, using receipt times, delivery times and waste times.
  */
-import type { CountItem, CountRow, Ingredient, Order, Rule, Shift, Supplier, WasteRow } from '../types';
+import type { CountItem, CountRow, Ingredient, Order, RoastRow, Rule, Shift, Supplier, WasteRow } from '../types';
 import { parseCountFrom } from './ordering';
-import { ROAST_RISE_G, isBeanStock, norm } from './catalog';
+import { roastRiseG, isBeanStock, norm } from './catalog';
 import type { LineUsage } from './usage';
 
 export interface Snapshot {
@@ -26,6 +26,10 @@ export interface Arrival {
   orderId: string;
   /** "roast": not a delivery. A bean count went up a lot, so a new roast is assumed (nobody enters roasts). */
   kind?: 'roast';
+  /** Roast only: true when the amount is a guess from the count rise, false when the owner entered the real weight. */
+  assumed?: boolean;
+  /** Roast only: the entered roast this comes from. */
+  roastId?: string;
 }
 export interface WasteBit { at: string; qty: number; item: string; reason: string }
 export interface UseBit { at: string; qty: number; receipt: string; item: string; choices: string; why: string; refund: boolean }
@@ -45,6 +49,8 @@ export interface Step {
   /** Difference as a percent of expected (null when expected is 0). */
   pct: number | null;
   over: boolean;
+  /** True when a new roast is only assumed from the count rise: the owner should enter the real weight. */
+  assumedRoast: boolean;
 }
 
 export interface StockInputs {
@@ -55,6 +61,8 @@ export interface StockInputs {
   suppliers: Supplier[];
   waste: WasteRow[];
   usage: LineUsage[];
+  /** Real roast weights entered by the owner. */
+  roasts?: RoastRow[];
 }
 
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -163,28 +171,56 @@ export function isOver(ing: Ingredient, difference: number, expected: number, co
   return Math.abs(difference) > (ing.limitPct / 100) * Math.max(Math.abs(expected), Math.abs(counted), 1);
 }
 
+/**
+ * Puts each entered roast on one count step: the step that shows the rise, on the roast day or the day after
+ * (otherwise the first count on or after the roast day). Returns step index -> roasts.
+ */
+function assignRoasts(snaps: Snapshot[], roasts: RoastRow[], limit: number): Map<number, RoastRow[]> {
+  const out = new Map<number, RoastRow[]>();
+  for (const r of roasts) {
+    const cands: number[] = [];
+    for (let i = 1; i < snaps.length; i++) if (snaps[i].businessDate >= r.date) cands.push(i);
+    if (!cands.length) continue;
+    const near = cands.filter((i) => snaps[i].businessDate <= addDay(r.date));
+    const pick = near.find((i) => snaps[i].value - snaps[i - 1].value >= limit) ?? cands[0];
+    out.set(pick, [...(out.get(pick) ?? []), r]);
+  }
+  return out;
+}
+const addDay = (d: string) => new Date(Date.parse(d + 'T00:00:00Z') + 864e5).toISOString().slice(0, 10);
+
+/** Pill colour for a difference: red above the limit, amber for a shortfall inside the limit or an assumed roast, green otherwise. */
+export const diffClass = (s: Pick<Step, 'over' | 'difference' | 'assumedRoast'>): 'p-bad' | 'p-warn' | 'p-good' =>
+  s.over ? 'p-bad' : s.assumedRoast || isMissing(s.difference) ? 'p-warn' : 'p-good';
+
 /** Every count compared with what was expected since the count before it. */
 export function steps(ing: Ingredient, inp: StockInputs): Step[] {
   const snaps = snapshots(ing, inp);
   const out: Step[] = [];
+  const limit = roastRiseG(ing.id);
+  const real = isBeanStock(ing.id) ? assignRoasts(snaps, (inp.roasts ?? []).filter((r) => r.ingredientId === ing.id), limit) : new Map<number, RoastRow[]>();
   for (let i = 1; i < snaps.length; i++) {
     const from = snaps[i - 1];
     const to = snaps[i];
     let arrived = arrivals(ing, inp, from.at, to.at);
+    // Roasts the owner entered with the real weight
+    for (const r of real.get(i) ?? []) arrived = [...arrived, { at: to.at, qty: r.grams, supplier: 'Roast', orderId: '', kind: 'roast', assumed: false, roastId: r.id }];
     const used = usedFor(ing, inp, from.at, to.at);
     const waste = wasteFor(ing, inp, from.at, to.at);
     let expected = r3(from.value + sum(arrived) - sum(used) - sum(waste));
     let difference = r3(to.value - expected);
-    // Roasting: nobody enters it. A bean count that rises by more than 4 kg since the last count is a new roast
-    // added to stock; what the count shows above the expected amount is the roast. Smaller rises stay differences.
-    if (isBeanStock(ing.id) && to.value - from.value > ROAST_RISE_G && difference > 0) {
-      arrived = [...arrived, { at: to.at, qty: difference, supplier: 'Roast', orderId: '', kind: 'roast' }];
+    // Roasting: if nobody entered the weight, a bean count that rises by the roast limit or more since the last count
+    // is assumed to be a new roast added to stock (a prompt: the owner should enter the real weight).
+    let assumedRoast = false;
+    if (isBeanStock(ing.id) && !(real.get(i) ?? []).length && to.value - from.value >= limit && difference > 0) {
+      arrived = [...arrived, { at: to.at, qty: difference, supplier: 'Roast', orderId: '', kind: 'roast', assumed: true }];
       expected = r3(expected + difference);
       difference = 0;
+      assumedRoast = true;
     }
     out.push({
       from, to, arrived, used, waste, arrivedTotal: sum(arrived), usedTotal: sum(used), wasteTotal: sum(waste), expected, counted: to.value,
-      difference, pct: expected ? Math.round((difference / expected) * 1000) / 10 : null, over: isOver(ing, difference, expected, to.value),
+      difference, pct: expected ? Math.round((difference / expected) * 1000) / 10 : null, over: isOver(ing, difference, expected, to.value), assumedRoast,
     });
   }
   return out;

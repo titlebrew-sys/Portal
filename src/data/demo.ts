@@ -102,6 +102,14 @@ export function demoStore(): Store {
     async loyverseMenu() {
       return DEMO_LY_ITEMS;
     },
+    async saveRoast(r) {
+      data = { ...data, roasts: [...(data.roasts ?? []), { id: crypto.randomUUID(), date: r.date, ingredientId: r.ingredientId, grams: r.grams, enteredBy: 'Rimma', enteredAt: new Date().toISOString() }] };
+      save();
+    },
+    async deleteRoast(id) {
+      data = { ...data, roasts: (data.roasts ?? []).filter((x) => x.id !== id) };
+      save();
+    },
     async saveIngredient(i) {
       const before = data.book.ingredients.find((x) => x.id === i.id);
       data = { ...data, book: { ...data.book, ingredients: upsert(data.book.ingredients, i, (x) => x.id === i.id) } };

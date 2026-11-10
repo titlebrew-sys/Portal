@@ -37,6 +37,9 @@ export interface Store {
   saveAlias(name: string, itemId: string): Promise<void>;
   /** Yesterday's and today's sales straight from Loyverse, with the till check. */
   liveSales(): Promise<LiveSales>;
+  /** Owner: enter the real weight of a roast (replaces the assumed amount). */
+  saveRoast(r: { date: string; ingredientId: string; grams: number }): Promise<void>;
+  deleteRoast(id: string): Promise<void>;
   /** Ask the Loyverse sync to run now (owner). */
   syncNow?(): Promise<string>;
 }

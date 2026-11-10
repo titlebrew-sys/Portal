@@ -52,7 +52,7 @@ export function useStockData(data: AppData, store: Store, from: string, to: stri
   const book = useMemo(() => makeBook(data.book.ingredients, data.book.recipes, data.book.modifierRules), [data.book]);
   const usage = useMemo(() => [...receiptUsage(book, receipts), ...coldBrewUsage(data.coldBrew ?? [])], [book, receipts, data.coldBrew]);
   const inputs: StockInputs = useMemo(
-    () => ({ items: data.items, counts: data.counts, orders: data.orders, rules: data.rules, suppliers: data.suppliers, waste: data.waste, usage }),
+    () => ({ items: data.items, counts: data.counts, orders: data.orders, rules: data.rules, suppliers: data.suppliers, waste: data.waste, usage, roasts: data.roasts ?? [] }),
     [data, usage],
   );
   return { loading, error, book, usage, inputs, receipts };

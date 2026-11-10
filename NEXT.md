@@ -177,3 +177,10 @@ away (spSendToPortal in PortalBridge.gs, called from Page.html after "Saved").
   `coldBrewUsage` in src/lib/usage.ts adds 180 g Ethiopia per "Yes". Arsen decided: no answer = Not made = 0 g.
 - Cold Brew and Nitro Cold Brew drinks now use NO beans (the batch covers it). Arsen must press "Update now" on Recipes to apply.
 - To switch on: run supabase/cold-brew.sql, redeploy sheet-counts, paste PortalBridge.gs, press Update now.
+
+## 11 Nov 2026: roasts, amber, deliveries page
+- Roasts: owner enters the real weight on the Stock page, Roasts panel (table `roasts`, supabase/roasts.sql). A real roast replaces the assumed one;
+  the assumed roast stays only as an amber prompt. Per origin limit: Brazil and Ethiopia 3 kg or more, Sidamo and Watermelon 0.8 kg or more (`roastRiseG`).
+- Amber: a shortfall inside the tolerance is amber, red only beyond it (`diffClass` in src/lib/stock.ts).
+- Deliveries page shows Delayed and Cancelled (edge function sheet-counts now keeps the item status; redeploy it).
+- To switch on: run supabase/roasts.sql, redeploy sheet-counts, then enter Brazil 14,200 g (10 Nov) and the real Ethiopia roast on Stock > Roasts.

@@ -3,7 +3,7 @@ import { useApp } from '../ctx';
 import { Head, MobileWho } from '../components';
 import type { Ingredient } from '../types';
 import { addDays, fmtShortDate } from '../lib/time';
-import { currentLevel, hasCount, isMissing, soldMoreThanCounted, steps, usedFor } from '../lib/stock';
+import { currentLevel, diffClass, hasCount, soldMoreThanCounted, steps, usedFor } from '../lib/stock';
 import { dayEnd, dayStart, useStockData } from '../lib/useStock';
 import { DateRange, StepCard, Tap, UsedList, amt, countLabel, signed } from './stockParts';
 
@@ -50,6 +50,7 @@ export function Stock() {
           </div>
         </div>
       )}
+      <RoastPanel />
       <div className="fieldset noprint"><label>Find<input className="field" placeholder="e.g. milk" value={q} onChange={(e) => setQ(e.target.value)} /></label></div>
       <div className="panel">
         {sd.loading && <p className="sub">Loading sales…</p>}
@@ -62,7 +63,7 @@ export function Stock() {
                   <td>{ing.name}{!hasCount(ing) && <span className="why">{ing.note ?? 'Not counted'}</span>}</td>
                   <td className="n">{lvl.expectedNow === null ? '–' : lvl.expectedNow < 0 ? <>{amt(0, ing.unit)}<span className="why">Sold {amt(soldMoreThanCounted(lvl.expectedNow), ing.unit)} more than was counted</span></> : amt(lvl.expectedNow, ing.unit)}</td>
                   <td>{lvl.last ? <>{amt(lvl.last.value, ing.unit)}<span className="why">{countLabel(lvl.last, WEEKLY(ing))}</span></> : <span className="why">No count yet</span>}</td>
-                  <td className="n">{lvl.lastStep ? <span className={'pill ' + (lvl.lastStep.over || isMissing(lvl.lastStep.difference) ? 'p-bad' : 'p-good')}>{signed(lvl.lastStep.difference, ing.unit)}</span> : '–'}</td>
+                  <td className="n">{lvl.lastStep ? <span className={'pill ' + diffClass(lvl.lastStep)}>{signed(lvl.lastStep.difference, ing.unit)}</span> : '–'}</td>
                   <td className="n">{amt(usedTotal, ing.unit)}</td>
                 </tr>
               ))}
@@ -102,6 +103,7 @@ function StockDetail({ ing, from, to, onBack, onRange }: { ing: Ingredient; from
           </div>
         ) : <p className="sub">{hasCount(ing) ? 'No count yet.' : ing.note ?? 'This ingredient is not linked to a count, so only sales use is shown.'}</p>}
       </div>
+      {ing.id.startsWith('bean-') && <RoastPanel ingId={ing.id} />}
       <h2>Each count</h2>
       {all.length ? all.map((s, i) => <StepCard key={i} ing={ing} step={s} weekly={weekly} />) : <p className="sub">No two counts in these days to compare yet.</p>}
       <div className="panel">
@@ -120,5 +122,40 @@ function StockDetail({ ing, from, to, onBack, onRange }: { ing: Ingredient; from
         </div>
       </div>
     </>
+  );
+}
+
+/** Owner only: enter the real weight of a roast. It replaces the amount the Portal assumes from a big rise in the count. */
+function RoastPanel({ ingId }: { ingId?: string }) {
+  const { data, store, me, today, run } = useApp();
+  const beans = data.book.ingredients.filter((i) => i.active && i.id.startsWith('bean-'));
+  const [bean, setBean] = useState(ingId ?? 'bean-brazil');
+  const [date, setDate] = useState(today);
+  const [grams, setGrams] = useState('');
+  if (me.role !== 'owner') return null;
+  const g = Number(grams.replace(',', '.'));
+  const list = (data.roasts ?? []).filter((r) => !ingId || r.ingredientId === ingId).slice().sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 8);
+  const nameOf = (id: string) => data.book.ingredients.find((i) => i.id === id)?.name ?? id;
+  return (
+    <div className="panel noprint">
+      <h2>Roasts</h2>
+      <p className="sub" style={{ margin: '0 0 8px' }}>Enter the real weight of a roast brought to the shop. It is used instead of the amount the Portal assumes when a bean count goes up a lot (shown in amber until you enter it).</p>
+      <div className="fieldset" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        {!ingId && <label>Bean<select className="field" value={bean} onChange={(e) => setBean(e.target.value)}>{beans.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>}
+        <label>Date brought<input className="field" type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label>
+        <label>Weight in g<input className="field" inputMode="decimal" placeholder="e.g. 14200" value={grams} onChange={(e) => setGrams(e.target.value)} /></label>
+        <button className="btn sm primary" disabled={!(g > 0) || !date} onClick={() => run(async () => { await store.saveRoast({ date, ingredientId: ingId ?? bean, grams: g }); setGrams(''); }, 'Roast saved')}>Save roast</button>
+      </div>
+      {list.length > 0 && (
+        <div className="rows">
+          {list.map((r) => (
+            <div className="r" key={r.id}>
+              <div className="t"><b>{nameOf(r.ingredientId)}: {amt(r.grams, 'g')}</b><span>{fmtShortDate(r.date)}, entered by {r.enteredBy}</span></div>
+              <button className="btn sm" onClick={() => { if (window.confirm('Remove this roast?')) run(() => store.deleteRoast(r.id), 'Roast removed'); }}>Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

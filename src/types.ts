@@ -124,7 +124,7 @@ export interface Order {
   receivedAt: string | null;
   receivedBy: string | null;
   /** What arrived: per order rule in order units, or (itemId) per counted item in counting units. */
-  received: { ruleId: string; qty: number; itemId?: string }[] | null;
+  received: { ruleId: string; qty: number; itemId?: string; status?: string }[] | null;
 }
 
 export interface WasteRow {
@@ -136,6 +136,17 @@ export interface WasteRow {
   loggedBy: string;
   /** When it was logged (ISO). Used to place waste between two counts. */
   createdAt?: string;
+}
+
+/** A real roast weight entered by the owner (grams of beans added to the shop stock). */
+export interface RoastRow {
+  id: string;
+  /** Business date the roast was brought to the shop. */
+  date: string;
+  ingredientId: string;
+  grams: number;
+  enteredBy: string;
+  enteredAt: string;
 }
 
 /** One answer to "Cold brew made?" at the Bar count. Yes = one 180 g batch of Ethiopia beans. */
@@ -175,6 +186,8 @@ export interface AppData {
   waste: WasteRow[];
   /** Cold brew answers (staff app). Missing day = Not made. */
   coldBrew?: ColdBrewRow[];
+  /** Real roast weights entered by the owner. */
+  roasts?: RoastRow[];
   sales: SalesRow[];
   salesPeriod: string | null;
   lpoNext: number;

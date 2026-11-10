@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { Ingredient, SyncRun } from '../types';
-import { isMissing, soldMoreThanCounted, type Step, type UseBit } from '../lib/stock';
+import { diffClass, soldMoreThanCounted, isMissing, type Step, type UseBit } from '../lib/stock';
 import { addDays, dubaiClock, fmtDubaiTime, fmtShortDate } from '../lib/time';
 import { amount } from '../lib/usage';
 
@@ -84,14 +84,14 @@ export function StepCard({ ing, step, weekly = false }: { ing: Ingredient; step:
     <div className={'item' + (step.over ? ' flag' : '')} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
       <div className="panel-h">
         <b>{countLabel(step.to, weekly)}</b>
-        <span className={'pill ' + (step.over || isMissing(step.difference) ? 'p-bad' : 'p-good')}>
-          {step.over ? 'Above the limit' : isMissing(step.difference) ? 'Missing, within the limit' : 'Within the limit'}: {signed(step.difference, u)}{step.pct !== null ? ` (${step.pct > 0 ? '+' : ''}${step.pct}%)` : ''}
+        <span className={'pill ' + diffClass(step)}>
+          {step.over ? 'Above the limit' : step.assumedRoast ? 'Roast weight assumed' : isMissing(step.difference) ? 'Missing, within the limit' : 'Within the limit'}: {signed(step.difference, u)}{step.pct !== null ? ` (${step.pct > 0 ? '+' : ''}${step.pct}%)` : ''}
         </span>
       </div>
       <div className="breakdown">
         <div><span>Last count ({countLabel(step.from, weekly)}, {step.from.countedBy})</span><Tap label={amt(step.from.value, u)}><CountParts parts={step.from.parts} unit={u} /></Tap></div>
         <div><span>+ arrived</span>
-          {step.arrived.length ? <Tap label={amt(step.arrivedTotal, u)}>{step.arrived.map((a, i) => <p key={i} className="sub" style={{ margin: 0 }}>{whenText(a.at)}: {amt(a.qty, u)} {a.kind === 'roast' ? 'new roast added (assumed, the count went up by more than 4 kg)' : `from ${a.supplier}`}</p>)}</Tap> : <b>{amt(0, u)}</b>}
+          {step.arrived.length ? <Tap label={amt(step.arrivedTotal, u)}>{step.arrived.map((a, i) => <p key={i} className="sub" style={{ margin: 0, color: a.assumed ? 'var(--warn)' : undefined }}>{whenText(a.at)}: {amt(a.qty, u)} {a.kind === 'roast' ? (a.assumed ? 'new roast added (assumed from the rise in the count, enter the real weight on the Stock page, Roasts)' : 'roast, weight entered by the owner') : `from ${a.supplier}`}</p>)}</Tap> : <b>{amt(0, u)}</b>}
         </div>
         <div><span>− used by sales</span><Tap label={amt(step.usedTotal, u)}><UsedList used={step.used} unit={u} /></Tap></div>
         <div><span>− thrown away</span>
@@ -100,7 +100,7 @@ export function StepCard({ ing, step, weekly = false }: { ing: Ingredient; step:
         <div className="total"><span>= expected</span><b>{amt(step.expected, u)}</b></div>
         {soldMoreThanCounted(step.expected) > 0 && <p className="sub" style={{ margin: 0, color: 'var(--warn)' }}>Sales used {amt(soldMoreThanCounted(step.expected), u)} more than was counted at the last count, so the expected amount is below zero. Check the last count, the deliveries and the recipe.</p>}
         <div><span>Counted ({step.to.countedBy})</span><Tap label={amt(step.counted, u)}><CountParts parts={step.to.parts} unit={u} /></Tap></div>
-        <div className="total"><span>Difference = counted − expected</span><b style={{ color: step.over || isMissing(step.difference) ? 'var(--bad)' : undefined }}>{signed(step.difference, u)}</b></div>
+        <div className="total"><span>Difference = counted − expected</span><b style={{ color: step.over ? 'var(--bad)' : step.assumedRoast || isMissing(step.difference) ? 'var(--warn)' : undefined }}>{signed(step.difference, u)}</b></div>
       </div>
     </div>
   );

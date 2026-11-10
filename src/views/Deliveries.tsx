@@ -18,7 +18,9 @@ interface DeliveryView {
   at: string | null;
   paid: number | null;
   why: string;
-  lines: { name: string; ordered: number | null; arrived: number }[];
+  /** From the staff app: Delayed (the rest is still coming) or Cancelled (the rest is not coming). */
+  state: '' | 'delayed' | 'cancelled';
+  lines: { name: string; ordered: number | null; arrived: number; status: string }[];
 }
 
 /** What kind of delivery a record is, from who saved it. */
@@ -36,8 +38,11 @@ export function toView(o: Order, supplierName: string): DeliveryView {
   const parts = o.message.split(' · ');
   const lines =
     kind === 'shop' || kind === 'extra'
-      ? o.lines.map((l) => ({ name: l.name, ordered: null, arrived: l.qty }))
-      : o.lines.map((l) => ({ name: l.name, ordered: l.qty, arrived: o.received?.find((r) => r.ruleId === l.ruleId)?.qty ?? (kind === 'waiting' ? 0 : l.qty) }));
+      ? o.lines.map((l) => ({ name: l.name, ordered: null, arrived: l.qty, status: '' }))
+      : o.lines.map((l) => ({ name: l.name, ordered: l.qty, arrived: o.received?.find((r) => r.ruleId === l.ruleId)?.qty ?? (kind === 'waiting' ? 0 : l.qty), status: o.received?.find((r) => r.ruleId === l.ruleId)?.status ?? '' }));
+  // Like the sheet: any Delayed item means still coming, otherwise any Cancelled item means the rest is not coming
+  const sts = lines.map((l) => l.status);
+  const state = sts.includes('Delayed') ? 'delayed' : sts.includes('Cancelled') ? 'cancelled' : '';
   return {
     order: o,
     supplier: kind === 'shop' ? 'Bought from a shop' : supplierName,
@@ -47,6 +52,7 @@ export function toView(o: Order, supplierName: string): DeliveryView {
     at: o.receivedAt,
     paid: paid ? Number(paid[1]) : null,
     why: kind === 'shop' || kind === 'extra' ? parts.slice(paid ? 2 : 1).join(' · ') : '',
+    state,
     lines,
   };
 }
@@ -131,7 +137,9 @@ function DeliveryRow({ d }: { d: DeliveryView }) {
   const [open, setOpen] = useState(false);
   const shortItems = d.lines.filter((l) => l.ordered !== null && l.arrived !== l.ordered);
   const status =
-    d.kind === 'confirmed' ? { cls: shortItems.length ? 'p-warn' : 'p-good', text: shortItems.length ? 'Different from the order' : 'Confirmed' }
+    d.kind === 'confirmed' && d.state === 'delayed' ? { cls: 'p-warn', text: 'Delayed, still coming' }
+      : d.kind === 'confirmed' && d.state === 'cancelled' ? { cls: 'p-bad', text: d.lines.every((l) => l.arrived === 0) ? 'Cancelled' : 'Rest not coming' }
+      : d.kind === 'confirmed' ? { cls: shortItems.length ? 'p-warn' : 'p-good', text: shortItems.length ? 'Different from the order' : 'Confirmed' }
       : d.kind === 'assumed' ? { cls: 'p-bad', text: 'Not confirmed' }
         : d.kind === 'shop' ? { cls: 'p-s1', text: d.paid !== null ? aed(d.paid) : 'Bought' }
           : { cls: 'p-s1', text: 'Extra, not ordered' };
@@ -151,7 +159,7 @@ function DeliveryRow({ d }: { d: DeliveryView }) {
             <tbody>
               {d.lines.map((l, i) => (
                 <tr key={i}>
-                  <td>{l.name}</td>
+                  <td>{l.name}{l.status === 'Delayed' && <span className="why">Delayed, the rest is still coming</span>}{l.status === 'Cancelled' && <span className="why">Cancelled, the rest is not coming</span>}</td>
                   {l.ordered !== null && <td className="n">{fmtNum(l.ordered)}</td>}
                   <td className="n" style={{ color: l.ordered !== null && l.arrived !== l.ordered ? 'var(--warn)' : undefined, fontWeight: l.ordered !== null && l.arrived !== l.ordered ? 700 : undefined }}>{fmtNum(l.arrived)}</td>
                 </tr>

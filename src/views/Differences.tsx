@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp } from '../ctx';
 import { Head, MobileWho } from '../components';
 import { addDays, fmtDubaiTime, fmtShortDate } from '../lib/time';
-import { isMissing, soldMoreThanCounted, steps, type Step } from '../lib/stock';
+import { diffClass, soldMoreThanCounted, steps, type Step } from '../lib/stock';
 import { useStockData } from '../lib/useStock';
 import { downloadBytes, makeXlsx } from '../lib/xlsxWrite';
 import type { Ingredient } from '../types';
@@ -71,7 +71,7 @@ export function Differences() {
                     <td>{r.ing.name}</td>
                     <td className="n">{amt(r.step.expected, r.ing.unit)}{soldMoreThanCounted(r.step.expected) > 0 && <span className="why">Sold more than was counted</span>}</td>
                     <td className="n">{amt(r.step.counted, r.ing.unit)}</td>
-                    <td className="n"><span className={'pill ' + (r.step.over || isMissing(r.step.difference) ? 'p-bad' : 'p-good')}>{signed(r.step.difference, r.ing.unit)}{r.step.pct !== null ? ` (${r.step.pct}%)` : ''}</span></td>
+                    <td className="n"><span className={'pill ' + diffClass(r.step)}>{signed(r.step.difference, r.ing.unit)}{r.step.pct !== null ? ` (${r.step.pct}%)` : ''}</span></td>
                   </tr>,
                   open === i && <tr key={i + 'x'}><td colSpan={5}><StepCard ing={r.ing} step={r.step} weekly={r.ing.countFrom.includes('wk-')} /></td></tr>,
                 ])}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CountRow, Ingredient, Order, Rule, WasteRow } from '../types';
 import { seedItems } from '../data/seed';
-import { currentLevel, isMissing, isOver, snapshots, soldMoreThanCounted, steps, type StockInputs } from './stock';
+import { currentLevel, diffClass, isMissing, isOver, snapshots, soldMoreThanCounted, steps, type StockInputs } from './stock';
 import type { LineUsage } from './usage';
 
 const milk: Ingredient = { id: 'milk-full-fat', name: 'Full fat milk', unit: 'ml', countFrom: '1000*bar-full-fat-milk', limitPct: 5, note: null, active: true, sort: 0 };
@@ -97,14 +97,29 @@ describe('roasting: a big rise in a bean count is a new roast', () => {
     counts: [count('bar-brazil-beans', '2026-11-05', 2, 3000, '2026-11-05T17:00:00Z'), count('bar-brazil-beans', '2026-11-06', 1, to, '2026-11-06T12:00:00Z')],
     usage: [use('2026-11-06T05:00:00Z', 'bean-brazil', usedG)],
   });
-  it('a rise of more than 4 kg is added as a roast and the difference is zero', () => {
+  it('a rise of 4 kg is added as a roast and the difference is zero', () => {
     const [s] = steps(brazil, beans(9000)); // 3 kg - 1 kg used = 2 kg expected, 9 kg counted: +6 kg
-    expect(s.arrived).toEqual([{ at: '2026-11-06T12:00:00Z', qty: 7000, supplier: 'Roast', orderId: '', kind: 'roast' }]);
+    expect(s.arrived).toEqual([{ at: '2026-11-06T12:00:00Z', qty: 7000, supplier: 'Roast', orderId: '', kind: 'roast', assumed: true }]);
     expect([s.arrivedTotal, s.expected, s.difference, s.over]).toEqual([7000, 9000, 0, false]);
   });
-  it('a rise of 4 kg or less stays a difference', () => {
-    const [s] = steps(brazil, beans(7000)); // +4 kg exactly: not more than 4 kg
-    expect([s.arrived, s.expected, s.difference]).toEqual([[], 2000, 5000]);
+  it('a rise under 3 kg stays a difference, 3 kg or more is a roast (Brazil and Ethiopia)', () => {
+    const [s1] = steps(brazil, beans(5900)); // +2.9 kg
+    expect([s1.arrived, s1.expected, s1.difference, s1.assumedRoast]).toEqual([[], 2000, 3900, false]);
+    const [s2] = steps(brazil, beans(6000)); // +3 kg exactly
+    expect([s2.assumedRoast, s2.difference]).toEqual([true, 0]);
+  });
+  it('a real roast weight replaces the assumed amount, so the difference shows', () => {
+    const roast = { id: 'r1', date: '2026-11-06', ingredientId: 'bean-brazil', grams: 14200, enteredBy: 'Arsen', enteredAt: '2026-11-06T10:00:00Z' };
+    const [s] = steps(brazil, { ...beans(16146), roasts: [roast] }); // 2 kg expected + 14,146 g counted above it
+    expect(s.arrived).toEqual([{ at: '2026-11-06T12:00:00Z', qty: 14200, supplier: 'Roast', orderId: '', kind: 'roast', assumed: false, roastId: 'r1' }]);
+    expect([s.expected, s.difference, s.assumedRoast]).toEqual([16200, -54, false]);
+    expect(diffClass(s)).toBe('p-warn'); // a small shortfall inside the limit is amber
+  });
+  it('amber for a shortfall inside the limit, red only beyond it', () => {
+    expect(diffClass({ over: false, difference: -30, assumedRoast: false })).toBe('p-warn');
+    expect(diffClass({ over: true, difference: -3000, assumedRoast: false })).toBe('p-bad');
+    expect(diffClass({ over: false, difference: 0, assumedRoast: true })).toBe('p-warn');
+    expect(diffClass({ over: false, difference: 10, assumedRoast: false })).toBe('p-good');
   });
   it('a count that is lower than expected is never a roast; other ingredients are not touched', () => {
     const [s] = steps(brazil, beans(1000));

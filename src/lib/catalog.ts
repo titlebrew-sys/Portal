@@ -282,7 +282,10 @@ export const SET_AMOUNTS: [string, string, number][] = [
   ['Bumble', 'orange-juice', 200],
 ];
 
-/** A bean count that goes up by more than this many grams since the last count is taken as a new roast added to stock. */
-export const ROAST_RISE_G = 4000;
+/**
+ * A bean count that goes up by this many grams or more since the last count is taken as a new roast added to stock.
+ * Brazil and Ethiopia are always a 4 kg roast. Sidamo and Watermelon can be a 1 kg roast.
+ */
+export const roastRiseG = (ingredientId: string): number => (ingredientId === 'bean-brazil' || ingredientId === 'bean-ethiopia' ? 3000 : 800);
 /** Ingredient ids that are beans counted in the shop stock (roasts are added to these). */
 export const isBeanStock = (ingredientId: string) => ingredientId.startsWith('bean-');

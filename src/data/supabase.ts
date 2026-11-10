@@ -6,7 +6,7 @@
  * who can read and change what.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { AppData, ColdBrewRow, CountItem, CountRow, Ingredient, ModifierRule, Order, Receipt, Recipe, RecipeChange, Rule, SalesReport, SalesRow, SheetOrders, StockBook, Supplier, SyncRun, WasteRow } from '../types';
+import type { AppData, ColdBrewRow, RoastRow, CountItem, CountRow, Ingredient, ModifierRule, Order, Receipt, Recipe, RecipeChange, Rule, SalesReport, SalesRow, SheetOrders, StockBook, Supplier, SyncRun, WasteRow } from '../types';
 import type { LyItem } from '../lib/importRecipes';
 import type { LiveSales } from '../types';
 import type { Auth, Store } from './store';
@@ -72,6 +72,7 @@ const orderFrom = (r: any): Order => ({
   id: r.id, businessDate: r.business_date, supplierId: r.supplier_id, lines: r.lines, message: r.message, lpoNumber: r.lpo_number,
   sentBy: r.sent_by, sentAt: r.sent_at, receivedAt: r.received_at, receivedBy: r.received_by, received: r.received,
 });
+const roastFrom = (r: any): RoastRow => ({ id: r.id, date: r.date, ingredientId: r.ingredient_id, grams: Number(r.grams), enteredBy: r.entered_by, enteredAt: r.entered_at });
 const coldBrewFrom = (r: any): ColdBrewRow => ({ businessDate: r.business_date, shift: Number(r.shift), answer: r.answer === 'Yes' ? 'Yes' : 'Not made', grams: Number(r.grams), savedBy: r.saved_by, at: r.at });
 const wasteFrom = (r: any): WasteRow => ({ id: r.id, date: r.date, item: r.item, qty: Number(r.qty), reason: r.reason, loggedBy: r.logged_by, createdAt: r.created_at });
 const ingFrom = (r: any): Ingredient => ({
@@ -165,7 +166,7 @@ export function liveStore(isOwner: () => boolean, myName: () => string = () => '
     async load(): Promise<AppData> {
       const since = addDays(businessDate(), -HISTORY_DAYS);
       const page = (t: string, col: string, order?: string) => allRows(() => { const q = db().from(t).select('*').gte(col, since); return order ? q.order(order) : q; });
-      const [items, sups, rules, counts, sessions, orders, waste, settings, sales, book, mirror, coldBrew] = await Promise.all([
+      const [items, sups, rules, counts, sessions, orders, waste, settings, sales, book, mirror, coldBrew, roasts] = await Promise.all([
         allRows(() => db().from('count_items').select('*').order('sort')),
         allRows(() => db().from('suppliers').select('*').order('sort')),
         allRows(() => db().from('rules').select('*').order('sort')),
@@ -180,6 +181,8 @@ export function liveStore(isOwner: () => boolean, myName: () => string = () => '
         db().from('sheet_orders_now').select('data, updated_at').eq('id', 'current').maybeSingle().then((r: any) => r.data ?? null, () => null),
         // Cold brew answers. Missing table or no answers yet: no batches are counted.
         db().from('cold_brew_log').select('*').gte('business_date', since).then((r: any) => (r.data ?? []) as any[], () => [] as any[]),
+        // Real roast weights entered by the owner. Missing table: the assumed amount is used.
+        db().from('roasts').select('*').order('date').then((r: any) => (r.data ?? []) as any[], () => [] as any[]),
       ]);
       const set = Object.fromEntries((settings as any[]).map((s) => [s.key, s.value]));
       return {
@@ -193,6 +196,7 @@ export function liveStore(isOwner: () => boolean, myName: () => string = () => '
         orders: (orders as any[]).map(orderFrom),
         waste: (waste as any[]).map(wasteFrom),
         coldBrew: (coldBrew as any[]).map(coldBrewFrom),
+        roasts: (roasts as any[]).map(roastFrom),
         sales: (sales as any[]).map(salesFrom),
         salesPeriod: set.sales_period ?? null,
         lpoNext: Number(set.lpo_next ?? seedLpoNext),
@@ -264,6 +268,12 @@ export function liveStore(isOwner: () => boolean, myName: () => string = () => '
       const { data, error } = await db().functions.invoke('loyverse-sync', { body: { action: 'menu' } });
       if (error || !data?.ok) throw new Error('Could not read the menu from Loyverse. ' + (error?.message ?? data?.message ?? ''));
       return data.menu as LyItem[];
+    },
+    async saveRoast(r) {
+      check(await db().from('roasts').insert({ date: r.date, ingredient_id: r.ingredientId, grams: r.grams, entered_by: myName() }));
+    },
+    async deleteRoast(id) {
+      check(await db().from('roasts').delete().eq('id', id));
     },
     async saveIngredient(i) {
       check(await db().from('ingredients').upsert(ingTo(i, myName())));

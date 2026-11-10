@@ -26,7 +26,7 @@ type Batch = { business_date: string; shift: 1 | 2 | 'W' | '1' | '2'; area: 'Bar
 type Delivery = {
   id: string; business_date: string; kind: 'order' | 'shop' | 'supplier'; supplier: string; order_date: string; at: string; by: string;
   paid: number | null; why: string; note: string;
-  items: { order_item: string; count_item: string; ordered: number | null; qty: number; count_qty: number }[];
+  items: { order_item: string; count_item: string; ordered: number | null; qty: number; count_qty: number; status?: string }[];
 };
 /** A day's final orders from the sheet, in count units (what staff count: L, g, pcs...). */
 type SheetOrders = { business_date: string; items: { order_item: string; count_qty: number }[]; partial?: boolean };
@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
             ?? (rules ?? []).find((r: any) => norm(r.order_item) === norm(it.order_item));
           if (!rule) { unknownOrders.add(String(it.order_item)); continue; }
           lines.push({ ruleId: rule.id, name: rule.order_item, qty: num(it.ordered) ?? num(it.qty) ?? 0, unit: rule.order_unit, price: rule.price === null ? null : Number(rule.price) });
-          received.push({ ruleId: rule.id, qty: num(it.qty) ?? 0 });
+          received.push({ ruleId: rule.id, qty: num(it.qty) ?? 0, status: it.status === 'Delayed' || it.status === 'Cancelled' ? it.status : '' });
         }
         const { error } = await db.from('orders').upsert({
           id: await stableId(`sheet-order|${orderDate}|${sid}`), business_date: orderDate, supplier_id: sid, lines, message: 'From the Google Sheet',
