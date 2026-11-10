@@ -58,7 +58,7 @@ export function Today() {
       />
       <div className="grid">
         <div className="panel">
-          <div className="panel-h"><h2>Today's counts</h2><a href="#count">Open</a></div>
+          <div className="panel-h"><h2>Today's counts</h2></div>
           <div className="rows">
             {status('Bar', 1)}
             {status('Bar', 2)}
@@ -72,7 +72,7 @@ export function Today() {
         </div>
 
         <div className="panel">
-          <div className="panel-h"><h2>Orders to send</h2><a href="#orders">Open</a></div>
+          <div className="panel-h"><h2>Orders to send</h2></div>
           <div className="stat">{due.length}<small>suppliers, {due.reduce((a, p) => a + itemsToOrder(p).length, 0)} items</small></div>
           <div className="rows">
             {due.map((p) => (
@@ -89,7 +89,7 @@ export function Today() {
         </div>
 
         <div className="panel">
-          <div className="panel-h"><h2>Expiry check</h2><a href="#count">Kitchen</a></div>
+          <div className="panel-h"><h2>Expiry check</h2></div>
           <div className="rows">
             {exp.length ? (
               exp.map((k) => (
@@ -118,7 +118,7 @@ export function Today() {
         <DifferenceAlerts />
 
         <div className="panel">
-          <div className="panel-h"><h2>Stock to watch</h2><a href="#count">Bar</a></div>
+          <div className="panel-h"><h2>Stock to watch</h2></div>
           <div className="rows">
             {zero.map((b) => (
               <div className="r" key={b.id}><div className="t"><b>{b.name}</b><span>Counted 0 {b.unit} today</span></div><span className="pill p-bad">Out</span></div>

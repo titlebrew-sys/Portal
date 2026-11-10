@@ -184,3 +184,7 @@ away (spSendToPortal in PortalBridge.gs, called from Page.html after "Saved").
 - Amber: a shortfall inside the tolerance is amber, red only beyond it (`diffClass` in src/lib/stock.ts).
 - Deliveries page shows Delayed and Cancelled (edge function sheet-counts now keeps the item status; redeploy it).
 - To switch on: run supabase/roasts.sql, redeploy sheet-counts, then enter Brazil 14,200 g (10 Nov) and the real Ethiopia roast on Stock > Roasts.
+
+## 11 Nov 2026: lighter portal
+- Removed the Count, Orders and Deliveries pages (and the Receive view) from the Portal. The Google Sheet and staff app do these jobs.
+  Data still flows in (counts, deliveries, orders mirror) because Stock and Differences use it. Old pages are in git history if ever needed.
