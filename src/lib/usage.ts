@@ -27,6 +27,21 @@ export interface LineUsage {
   noRecipe: boolean;
 }
 
+/** Ethiopia beans in one cold brew batch. The batch is only counted when staff answer "Yes" to the Bar question. */
+export const COLD_BREW_BATCH_G = 180;
+
+/**
+ * Cold brew batches from the Bar question. "Yes" is one batch of 180 g Ethiopia beans, placed just before
+ * that shift's count. "Not made" or no answer uses nothing, and cold brew drinks themselves use no beans.
+ */
+export function coldBrewUsage(rows: { businessDate: string; shift: number; answer: string; grams: number; at: string }[]): LineUsage[] {
+  return rows.filter((r) => r.answer === 'Yes' && r.grams > 0).map((r) => ({
+    receipt: `cold-brew|${r.businessDate}|${r.shift}`, at: r.at, businessDate: r.businessDate, lineIdx: 0, item: 'Cold brew batch', choices: '', qty: 1,
+    refund: false, takeaway: false, noRecipe: false,
+    uses: [{ ingredientId: 'bean-ethiopia', qty: r.grams, why: `Cold brew batch made (Shift ${r.shift}): ${r.grams} g Ethiopia beans` }],
+  }));
+}
+
 export interface RecipeBook {
   ingredients: Map<string, Ingredient>;
   byId: Map<string, Recipe>;

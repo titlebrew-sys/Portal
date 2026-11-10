@@ -3,7 +3,7 @@ import { DEMO_LY_ITEMS } from '../data/demoLoyverse';
 import { seedItems } from '../data/seed';
 import { START_INGREDIENTS, START_MODIFIER_RULES } from './catalog';
 import { importRecipes, pieceIngredients } from './importRecipes';
-import { lineUses, makeBook, receiptUsage, recipeSentence, ruleSentence, totalsByIngredient } from './usage';
+import { coldBrewUsage, lineUses, makeBook, receiptUsage, recipeSentence, ruleSentence, totalsByIngredient } from './usage';
 import { updateRecipes, updateRules } from './recipeUpdate';
 import type { Receipt, SaleModifier } from '../types';
 
@@ -27,7 +27,7 @@ describe('starting recipes from Loyverse with Rimma’s corrections', () => {
       { ingredientId: 'bean-brazil', qty: 18, role: 'coffee' },
       { ingredientId: 'milk-full-fat', qty: 214, role: 'milk' },
     ]);
-    expect(recipe('Cold Brew').lines[0].qty).toBe(32);
+    expect(recipe('Cold Brew').lines.some((l) => l.role === 'coffee')).toBe(false); // beans come from the cold brew batch question
     expect(uses('Spanish Latte')['condensed-milk']).toBe(25); // Arsen: 25 g dine-in
   });
   it('applies the corrections', () => {
@@ -145,6 +145,21 @@ describe('menu vs ingredient items', () => {
   });
 });
 
+describe('cold brew batches', () => {
+  const row = (answer: string, grams: number) => ({ businessDate: '2026-11-11', shift: 1, answer, grams, at: '2026-11-11T11:59:00.000Z' });
+  it('Yes is one 180 g batch of Ethiopia beans, Not made and no answer use nothing', () => {
+    const yes = coldBrewUsage([row('Yes', 180)]);
+    expect(yes).toHaveLength(1);
+    expect(yes[0].uses).toMatchObject([{ ingredientId: 'bean-ethiopia', qty: 180 }]);
+    expect(coldBrewUsage([row('Not made', 0)])).toEqual([]);
+    expect(coldBrewUsage([])).toEqual([]);
+  });
+  it('a Cold Brew sold uses no beans', () => {
+    expect(uses('Cold Brew')['bean-ethiopia']).toBeUndefined();
+    expect(uses('Cold Brew')['bean-brazil']).toBeUndefined();
+  });
+});
+
 describe('live update with Arsen answers', () => {
   it('filter drinks 20 g Ethiopia, espresso 18 g, nitro 0.33; skips what is already right', () => {
     const mk = (itemName: string, qty: number, ingredientId = 'bean-brazil') => ({ id: itemName, itemName, lines: [{ ingredientId, qty, role: 'coffee' as const }], takeaway: [], ignoreGroups: [], note: null, updatedBy: '', updatedAt: '' });
@@ -153,7 +168,7 @@ describe('live update with Arsen answers', () => {
     expect(by('V60')!.lines[0]).toMatchObject({ qty: 20, ingredientId: 'bean-ethiopia' });
     expect(by('Espresso')!.lines[0]).toMatchObject({ qty: 18, ingredientId: 'bean-ethiopia' });
     expect(by('Latte')).toBeUndefined();
-    expect(by('Cold Brew')).toBeUndefined();
+    expect(by('Cold Brew')!.lines).toEqual([]); // cold brew drinks use no beans, the 180 g batch is counted from the Bar question
     expect(by('Nitro Cold Brew')!.lines).toEqual([{ ingredientId: 'nitro-cartridge', qty: 0.33 }]);
   });
   it('Matcha Grey: 200 ml of the coconut base, 3 g matcha', () => {

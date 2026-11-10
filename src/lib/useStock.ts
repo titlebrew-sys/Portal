@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { AppData, Receipt } from '../types';
 import type { Store } from '../data/store';
 import { addDays } from './time';
-import { makeBook, receiptUsage, type LineUsage, type RecipeBook } from './usage';
+import { coldBrewUsage, makeBook, receiptUsage, type LineUsage, type RecipeBook } from './usage';
 import type { StockInputs } from './stock';
 
 /** Business day d starts at 4am Dubai = 00:00 UTC. */
@@ -50,7 +50,7 @@ export function useStockData(data: AppData, store: Store, from: string, to: stri
     return () => { live = false; };
   }, [store, from, to]);
   const book = useMemo(() => makeBook(data.book.ingredients, data.book.recipes, data.book.modifierRules), [data.book]);
-  const usage = useMemo(() => receiptUsage(book, receipts), [book, receipts]);
+  const usage = useMemo(() => [...receiptUsage(book, receipts), ...coldBrewUsage(data.coldBrew ?? [])], [book, receipts, data.coldBrew]);
   const inputs: StockInputs = useMemo(
     () => ({ items: data.items, counts: data.counts, orders: data.orders, rules: data.rules, suppliers: data.suppliers, waste: data.waste, usage }),
     [data, usage],

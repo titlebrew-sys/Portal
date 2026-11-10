@@ -170,3 +170,10 @@ Idea for later: the Portal could read the Orders Log to show what was really sen
 
 Done 8 Nov: every Save in the staff app (staff or manager) sends the counts to the Portal straight
 away (spSendToPortal in PortalBridge.gs, called from Page.html after "Saved").
+
+## Cold brew question (11 Nov 2026)
+- Staff app: StaffPage.gs, Page.html, ColdBrew.gs (live 11 Nov copies plus the question). Answers go to the "Cold Brew Log" tab.
+- Portal side built: PortalBridge.gs sends `cold_brew`, edge function sheet-counts saves to table `cold_brew_log` (supabase/cold-brew.sql),
+  `coldBrewUsage` in src/lib/usage.ts adds 180 g Ethiopia per "Yes". Arsen decided: no answer = Not made = 0 g.
+- Cold Brew and Nitro Cold Brew drinks now use NO beans (the batch covers it). Arsen must press "Update now" on Recipes to apply.
+- To switch on: run supabase/cold-brew.sql, redeploy sheet-counts, paste PortalBridge.gs, press Update now.

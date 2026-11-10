@@ -102,7 +102,9 @@ export function importRecipes(items: LyItem[], ingredients: Ingredient[], by = '
     const coffee = has(COLD_BREWS, it.name) ? COLD_BREW_GRAMS : has(FILTER_DRINKS, it.name) ? FILTER_GRAMS : COFFEE_GRAMS;
     const bean = has(ETHIOPIA_DEFAULT, it.name) ? 'bean-ethiopia' : 'bean-brazil';
     lines = lines.map((l) => (l.role === 'coffee' ? { ...l, qty: coffee, ingredientId: bean } : l));
-    if ((has(COFFEE_DRINKS, it.name) || has(COLD_BREWS, it.name)) && !lines.some((l) => l.role === 'coffee'))
+    // Cold brew beans come from the Bar question (a 180 g batch), not from each drink
+    if (has(COLD_BREWS, it.name)) lines = lines.filter((l) => l.role !== 'coffee');
+    if (has(COFFEE_DRINKS, it.name) && !lines.some((l) => l.role === 'coffee'))
       lines.unshift({ ingredientId: bean, role: 'coffee', qty: coffee });
     for (const [n, id, qty] of SET_AMOUNTS) {
       if (norm(n) !== norm(it.name)) continue;

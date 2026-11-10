@@ -138,6 +138,17 @@ export interface WasteRow {
   createdAt?: string;
 }
 
+/** One answer to "Cold brew made?" at the Bar count. Yes = one 180 g batch of Ethiopia beans. */
+export interface ColdBrewRow {
+  businessDate: string;
+  shift: number;
+  answer: 'Yes' | 'Not made';
+  grams: number;
+  savedBy: string;
+  /** One minute before the count of that shift (ISO). */
+  at: string;
+}
+
 export interface SalesRow {
   item: string;
   cat: string;
@@ -162,6 +173,8 @@ export interface AppData {
   sessions: CountSession[];
   orders: Order[];
   waste: WasteRow[];
+  /** Cold brew answers (staff app). Missing day = Not made. */
+  coldBrew?: ColdBrewRow[];
   sales: SalesRow[];
   salesPeriod: string | null;
   lpoNext: number;

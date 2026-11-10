@@ -42,12 +42,13 @@ function portalBridgeSend(savedBy) {
     var deliveries = typeof deliveriesForPortal_ === 'function' ? deliveriesForPortal_() : [];
     var batches = portalBridgeBatches_(savedBy).concat(portalBridgeHistory_());
     var orders = portalBridgeOrders_();
-    if (!batches.length && !orders.length && !deliveries.length) { portalBridgeLog_('Nothing to send', 'No counts on the sheet yet today.'); return; }
+    var coldBrew = portalBridgeColdBrew_();
+    if (!batches.length && !orders.length && !deliveries.length && !coldBrew.length) { portalBridgeLog_('Nothing to send', 'No counts on the sheet yet today.'); return; }
     var res = UrlFetchApp.fetch(url, {
       method: 'post',
       contentType: 'application/json',
       headers: { 'x-bridge-secret': secret },
-      payload: JSON.stringify({ batches: batches, orders: orders, deliveries: deliveries }),
+      payload: JSON.stringify({ batches: batches, orders: orders, deliveries: deliveries, cold_brew: coldBrew }),
       muteHttpExceptions: true,
     });
     var code = res.getResponseCode();
@@ -235,6 +236,34 @@ function portalBridgeBusinessKey_() {
   var d = bar ? bar.getRange('C2').getValue() : '';
   if (Object.prototype.toString.call(d) === '[object Date]') return Utilities.formatDate(d, PORTAL_BRIDGE_TZ, 'yyyy-MM-dd');
   return Utilities.formatDate(new Date(Date.now() - 4 * 3600e3), PORTAL_BRIDGE_TZ, 'yyyy-MM-dd');
+}
+
+/**
+ * The cold brew answers from the "Cold Brew Log" tab (made by ColdBrew.gs), last 10 days.
+ * Yes = one batch of 180 g Ethiopia beans. Not made (or no answer) = 0 g. The batch is placed one minute
+ * before the count of that shift, so it belongs to the time between the two counts.
+ */
+function portalBridgeColdBrew_() {
+  try {
+    var sh = SpreadsheetApp.getActive().getSheetByName('Cold Brew Log');
+    if (!sh || sh.getLastRow() < 2) return [];
+    var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getDisplayValues();
+    var from = portalBridgeDayKey_(new Date(Date.now() - 10 * 86400e3));
+    var out = [];
+    rows.forEach(function (r) {
+      var day = String(r[1]), shift = Number(r[2]);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day < from || (shift !== 1 && shift !== 2)) return;
+      var answer = r[4] === 'Yes' ? 'Yes' : 'Not made';
+      out.push({
+        business_date: day, shift: shift, answer: answer, grams: answer === 'Yes' ? 180 : 0, saved_by: String(r[3] || 'Staff'),
+        at: new Date(Date.parse(portalBridgeCountTime_(day, shift)) - 60000).toISOString()
+      });
+    });
+    return out;
+  } catch (e) {
+    portalBridgeLog_('Cold brew', String(e && e.message ? e.message : e));
+    return [];
+  }
 }
 
 function portalBridgeDayKey_(d) { return Utilities.formatDate(d, PORTAL_BRIDGE_TZ, 'yyyy-MM-dd'); }

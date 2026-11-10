@@ -45,6 +45,11 @@ export function updateRecipes(recipes: Recipe[], by: string): Recipe[] {
       changed = true;
       return { ...l, qty, ingredientId };
     });
+    // Cold brew beans come from the Bar question (a 180 g batch when staff answer Yes), not from each drink
+    if (has(COLD_BREWS, r.itemName)) {
+      const kept = lines.filter((l) => l.role !== 'coffee' && !(l.ingredientId ?? '').startsWith('bean-'));
+      if (kept.length !== lines.length) { lines = kept; changed = true; }
+    }
     if (norm(r.itemName) === norm('Nitro Cold Brew') && !lines.some((l) => l.ingredientId === 'nitro-cartridge' && l.qty === NITRO_PER_SERVING)) {
       lines = [...lines.filter((l) => l.ingredientId !== 'nitro-cartridge'), { ingredientId: 'nitro-cartridge', qty: NITRO_PER_SERVING }];
       changed = true;

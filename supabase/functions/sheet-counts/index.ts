@@ -263,7 +263,27 @@ Deno.serve(async (req) => {
     else mirrorSaved = true;
   }
 
+  // Cold brew answers from the staff app ("Yes" = one 180 g batch of Ethiopia beans, "Not made" = 0 g)
+  let coldBrewSaved = 0;
+  const coldBrew: any[] = Array.isArray((body as any).cold_brew) ? (body as any).cold_brew : [];
+  if (coldBrew.length) {
+    const rows = coldBrew.flatMap((c) => {
+      const day = date(c.business_date);
+      const shift = Number(c.shift);
+      if (!day || ![1, 2].includes(shift)) return [];
+      const yes = c.answer === 'Yes';
+      const at = c.at && !Number.isNaN(Date.parse(c.at)) ? new Date(c.at).toISOString() : new Date().toISOString();
+      return [{ id: `${day}|${shift}`, business_date: day, shift, answer: yes ? 'Yes' : 'Not made', grams: yes ? 180 : 0, saved_by: String(c.saved_by || 'Staff'), at, location_id: LOCATION }];
+    });
+    if (rows.length) {
+      const { error } = await db.from('cold_brew_log').upsert(rows, { onConflict: 'id' });
+      if (error) errors.push(`Cold brew: ${error.message}`);
+      else coldBrewSaved = rows.length;
+    }
+  }
+
   const parts = [`${saved} counts saved or changed`];
+  if (coldBrewSaved) parts.push(`${coldBrewSaved} cold brew answers`);
   if (mirrorSaved) parts.push(`sheet orders copied (${mirror!.suppliers.length} suppliers)`);
   if (deliveriesSaved) parts.push(`${deliveriesSaved} deliveries`);
   if (ordersSaved) parts.push(`${ordersSaved} supplier orders`);
