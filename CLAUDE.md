@@ -34,6 +34,7 @@ Read this at the start of every chat. Also read `NEXT.md` for pending work.
   - After he pastes a file: Deploy > Manage deployments > pencil > New version > Deploy.
   - `google.script.run` drops null values. Send 0 or -1 instead.
 - **Portal**: https://portal-wine-delta-16.vercel.app (this repo, Vite + React, Supabase, Vercel).
+  - MONITORING ONLY (Arsen, 11 Nov). Nobody orders on the Portal. All ordering is in the APP and the sheet. Don't build ordering features in the Portal.
   - Reads Loyverse live. Business day runs 4am to 4am Dubai time.
   - Live recipes are data in Supabase, not in the code. `src/lib/catalog.ts` only sets defaults.
   - Suppliers, rules and items come from the Google Sheet, not the Portal.
