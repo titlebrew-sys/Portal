@@ -34,7 +34,7 @@ Ideas offered: warn when an order is under free delivery / minimum (L's Boutique
 Beverages 150 AED) and suggest items near reorder level; note when close to 10 cases of coconut milk
 (1 free). Small fix: Suppliers tab, New Country Home cutoff typo "4p m".
 After rules: recipes, by asking Arsen questions item by item (Arsen: later).
-**Recipes: Arsen's answers so far (9 Nov, do not build until he says so):**
+**Recipes: Arsen's answers so far (9 Nov, now built and live):**
 - Espresso-based coffee: 18 g (was 22 g). Not filter coffee. List of drinks sent to Arsen to confirm.
 - Filter (V60, Ice V60, AeroPress): 20 g; default beans Ethiopia (not Colombia) unless chosen.
 - Extra Shot modifier: 18 g.
