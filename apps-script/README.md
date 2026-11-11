@@ -1,52 +1,41 @@
 # Google Sheet scripts (staff app and bridge)
 
 The live versions of these files are in the Apps Script project of the Title Brew TEST sheet
-(Extensions > Apps Script). That project is the master copy.
+(Extensions > Apps Script). That project is the master copy. Before changing any file, ask Arsen for the live version.
 
-- `Code.gs`: live (9 Nov) plus one line in clearCount: clears Today's Orders column W at 4am. Today's Orders numbers (Suggested etc.) are sheet
-  formulas on that tab, not in Code.gs.
-- `PortalBridge.gs`: live version plus `spSendToPortal` (8 Nov 2026). The live Page.html calls it
-  after every Save: `call('spSendToPortal', [S.token], function () {});` in saveNow.
-  Also the manager-only sheet menu "Portal > Send to Portal now" (portalBridgeAddMenu, called from
-  onOpen in Code.gs; Script Property PORTAL_SEND_EMAIL = the manager's Google account).
-- `Deliveries.gs`: live (9 Nov) plus Delayed / Delivery cancelled (Status column P on the Deliveries tab),
-  and "still coming" in Today's Orders column W; run setupStillComing once so column O uses count + W.
-- `Orders.gs`: live version (9 Nov) plus the LPO number fix: shows the last LPO, writes the typed
-  number into the LPO Number row (found by label), then makes the draft. Also staff ordering from their own email (Download LPO, Open email).
-- `Page.html`: live (9 Nov) plus Delayed / Cancelled buttons and Download LPO / Open email.
-  OLD NOTE: They were changed further in
-  the Claude chat (expiry handling after deliveries, manager PIN, Done screens, search box).
-  Do not paste these over the live files.
-
-Before changing any of these files, copy the current version from Apps Script first and work
-from that.
-
-Live project files: Code.gs, StaffPage.gs, Page.html, Deliveries.gs, PortalBridge.gs, Orders.gs.
-
-8 Nov 2026, changed in the Claude chat (not in this repo):
-- NEW Orders.gs (live only): the "Orders for tomorrow" screen. spOrderAccess, spOrders, spSetChange,
-  spOrderDraft, spOrderSent. Reads the Today's Orders tab (Count, Suggested, Your change = column E,
-  Final, Message). Almarai and The Bakery get a Gmail draft (draftBakeryEmail / draftSupplierEmail in
-  Code.gs); WhatsApp suppliers open WhatsApp with the message. Each order is written to "Orders Log".
-- Page.html (live): "Orders for tomorrow" tile and screen added; the spSendToPortal line is kept.
-- Access: Staff tab column D "Can Send Orders" = Y (Arsen and Rhobel). Column C Manager = Arsen only.
-  Rhobel must never get manager rights. "Your change" editable 4am to 11pm; managers any time.
 After a change: Deploy > Manage deployments > pencil > Version: New version > Deploy.
 
-8 Nov 2026 evening, changed in the Claude chat (live Orders.gs and Page.html only):
-- Screen and home tile renamed "Place Order for Tomorrow".
-- "Suggested" shown as a bold coloured label on each item.
-- The Bakery: above "Save as draft in Gmail" the app shows "Last LPO was N (used on <date>)" and a box
-  "Write the new LPO number here". The draft button stays locked until a whole number higher than the
-  last LPO is typed. The app writes it to Today's Orders B33 (Rules C2 reads it), then
-  draftBakeryEmail attaches the LPO file. (Rest of this update not received yet.)
+## State of the copies (11 Nov 2026)
 
-10 Nov 2026, Portal Orders page copies the sheet (new file, nothing live was edited):
-- NEW PortalOrders.gs: portalBridgeSheetOrders_ reads Today's Orders with the same functions as the staff app's Orders screen
-  (orBlocks_, orBlockData_ in Orders.gs) and portalBridgeSendOrders sends it to the sheet-counts function as "sheet_orders".
-  Run portalBridgeSetupOrdersTrigger once: it sends every 10 minutes. Only problems go to the Bridge Log.
-  Needs PortalBridge.gs (settings, portalBridgeLog_) and Orders.gs. Sends no Staff tab data.
+On 11 Nov 2026 Arsen pasted all 8 live files into the chat. Each repo copy was checked against them.
 
-10 Nov 2026, Kitchen "Thrown away" column (column M). PortalBridge.gs in this repo is changed (not yet pasted live): thrown quantity now
-comes from column M for business dates from 10 Nov 2026; Shift 2 G / I / L are what is left. Code.gs, StaffPage.gs, Page.html were changed
-live in the Claude chat (copies not in this repo).
+Matching live (checked on key markers, not line by line):
+- `StaffPage.gs`: sign in, counts, locks, 4am to 4am business day, Thrown away, cold brew hooks.
+- `Page.html`: staff screens, Delayed / Cancelled, Place Order for Tomorrow, Download LPO and Open email, cold brew question.
+- `PortalBridge.gs`: counts, History, orders, deliveries, cold brew, pack sizes (Rules column K), thrown away from column M.
+- `Deliveries.gs`: Deliveries screen, Delayed / Cancelled, still coming (Today's Orders column W).
+- `PortalOrders.gs`: copy of Today's Orders for the Portal, sent every 10 minutes.
+- `ColdBrew.gs`: the cold brew question and the "Cold Brew Log" tab.
+
+Replaced with the live versions on 11 Nov 2026 (the old repo copies were behind):
+- `Code.gs`: now has `setupBusinessDay`, `calendarToday_`, `upgradeThrownAway` and the Kitchen column M (`s2t`).
+- `Orders.gs`: now has the 11 Nov speed change (`orContext_`, `orCell_`) and the LPO "used today" rule.
+
+## What each file does
+
+- `Code.gs`: daily saves (5pm, 11pm, 4am), History, locks, expiry dates, Clearance Log, usage learning, order tick boxes in the sheet, Bakery email with LPO.
+- `StaffPage.gs`: web app server side: PIN sign in, Home, count screens, saving counts.
+- `Page.html`: the whole staff web page.
+- `Deliveries.gs`: Deliveries screen and the "Deliveries" tab.
+- `Orders.gs`: Place Order for Tomorrow screen (Staff tab column D "Can Send Orders" = Y), "Orders Log" tab.
+- `ColdBrew.gs`: cold brew question under Ethiopia beans at the Bar count.
+- `PortalBridge.gs`: sends counts and more to the Portal (Supabase edge function `sheet-counts`). Settings are in Script Properties, never in code.
+- `PortalOrders.gs`: sends Today's Orders to the Portal every 10 minutes. Run `portalBridgeSetupOrdersTrigger` once.
+
+Live project files: Code.gs, StaffPage.gs, Page.html, Deliveries.gs, PortalBridge.gs, Orders.gs, ColdBrew.gs, PortalOrders.gs.
+
+## Notes
+
+- `google.script.run` drops null values. Send 0 or -1 instead.
+- Rhobel can place orders (column D) but is never a manager (column C).
+- The Staff tab has the PINs. Never share it and never put PINs in the repo.
