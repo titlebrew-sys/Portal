@@ -1,6 +1,6 @@
 # Title Brew: rules for Claude
 
-Read this at the start of every chat. Also read `NEXT.md` for pending work.
+Read this at the start of every chat.
 
 ## Who
 - **Arsen**: main admin and manager of Title Brew, a café in Dubai. Not technical.
