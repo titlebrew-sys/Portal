@@ -12,7 +12,6 @@ Read this at the start of every chat. Also read `NEXT.md` for pending work.
 - Always say exactly which files changed.
 - Keep things simple. Don't add complexity he didn't ask for.
 - If he says "undo", undo it fully.
-- Don't build anything on hold (recipes, the order rules) until he says go.
 
 ## Security (never break these)
 - The repo is public. Never put keys, passwords, tokens or staff PINs in the code.
