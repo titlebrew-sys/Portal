@@ -102,12 +102,17 @@ export function snapshots(ing: Ingredient, inp: StockInputs): Snapshot[] {
 
 const inWindow = (t: string, from: string, to: string) => t > from && t <= to;
 
+/** An order the sheet merely assumed would arrive; nobody confirmed it in the staff app yet. */
+export const isAssumedDelivery = (o: { receivedBy: string | null }) => (o.receivedBy ?? '').startsWith('Google Sheet (taken as delivered');
+
 /** Deliveries confirmed as arrived, turned into this ingredient's unit. */
 export function arrivals(ing: Ingredient, inp: StockInputs, from: string, to: string): Arrival[] {
   const terms = parseCountFrom(ing.countFrom);
   const out: Arrival[] = [];
   for (const o of inp.orders) {
     if (!o.receivedAt || !o.received || !inWindow(o.receivedAt, from, to)) continue;
+    // Only what staff confirmed in the staff app counts. The sheet's own guess ("taken as delivered next morning") does not.
+    if (isAssumedDelivery(o)) continue;
     for (const l of o.received) {
       // Not ordered (bought from a shop, extra from a supplier): amount already in counting units
       if (l.itemId) {

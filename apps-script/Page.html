@@ -1031,6 +1031,7 @@
         b.disabled = true; var was = b.textContent; b.textContent = 'Saving...';
         call('spConfirmDelivery', [S.token, s.name, items, rest], function (res) {
           if (!res.ok) { b.disabled = false; b.textContent = was; alert(res.msg); relabel(); return; }
+          call('spSendToPortal', [S.token], function () {});
           loadDeliveries(function () { drawDeliveries(); drawDvTile(); });
         }, function () { b.disabled = false; b.textContent = was; alert('Not saved. Check your signal and try again.'); relabel(); });
       };
@@ -1165,6 +1166,7 @@
         go.disabled = false; go.textContent = 'Save';
         if (!res.ok) { $('arrivalMsg').className = 'msg err'; $('arrivalMsg').textContent = res.msg; return; }
         $('arrivalBox').classList.add('hidden');
+        call('spSendToPortal', [S.token], function () {});
         loadDeliveries(function () { drawDeliveries(); drawDvTile(); });
       }, function () { go.disabled = false; go.textContent = 'Save'; $('arrivalMsg').className = 'msg err'; $('arrivalMsg').textContent = 'Not saved. Check your signal and try again.'; });
     };

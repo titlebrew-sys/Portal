@@ -188,3 +188,8 @@ away (spSendToPortal in PortalBridge.gs, called from Page.html after "Saved").
 ## 11 Nov 2026: lighter portal
 - Removed the Count, Orders and Deliveries pages (and the Receive view) from the Portal. The Google Sheet and staff app do these jobs.
   Data still flows in (counts, deliveries, orders mirror) because Stock and Differences use it. Old pages are in git history if ever needed.
+
+## 11 Nov 2026: arrivals only from the staff app
+- Portal Stock/Differences no longer count the sheet's guess ("taken as delivered next morning") as arrived. Only deliveries staff confirmed in the staff app (or added as arrivals) count. Changed: src/lib/stock.ts (isAssumedDelivery), stock.test.ts.
+- Page.html (APP): after Confirm delivery and Add arrival, the app now sends to the Portal straight away (spSendToPortal). Needs paste + New version.
+- Known gaps still open: Portal keeps its own pack sizes (oat milk showed 12, sheet says 8); a confirmed delivery's order date is guessed as the day before; deliveries confirmed more than 2 days late are not sent; thrown away is only read from Shift 2.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CountRow, Ingredient, Order, Rule, WasteRow } from '../types';
 import { seedItems } from '../data/seed';
-import { currentLevel, diffClass, isMissing, isOver, snapshots, soldMoreThanCounted, steps, type StockInputs } from './stock';
+import { arrivals, currentLevel, diffClass, isMissing, isOver, snapshots, soldMoreThanCounted, steps, type StockInputs } from './stock';
 import type { LineUsage } from './usage';
 
 const milk: Ingredient = { id: 'milk-full-fat', name: 'Full fat milk', unit: 'ml', countFrom: '1000*bar-full-fat-milk', limitPct: 5, note: null, active: true, sort: 0 };
@@ -144,5 +144,18 @@ describe('missing stock', () => {
     expect(isMissing(-0.01)).toBe(false); // rounding
     expect(isMissing(0)).toBe(false);
     expect(isMissing(300)).toBe(false);
+  });
+});
+
+describe('Only deliveries confirmed in the staff app count as arrived', () => {
+  const milk = { id: 'milk-full-fat', countFrom: '2*bar-full-fat-milk' } as Ingredient;
+  const win = ['2026-11-06T00:00:00Z', '2026-11-07T00:00:00Z'] as const;
+  it('ignores the sheet\'s "taken as delivered next morning" guess', () => {
+    const guess = { ...delivery, receivedBy: 'Google Sheet (taken as delivered next morning)' };
+    expect(arrivals(milk, inputs({ orders: [guess] }), ...win)).toEqual([]);
+  });
+  it('counts it once staff confirm it in the app', () => {
+    const confirmed = { ...delivery, receivedBy: 'Rhobel (confirmed)' };
+    expect(arrivals(milk, inputs({ orders: [confirmed] }), ...win)).toHaveLength(1);
   });
 });
