@@ -19,10 +19,12 @@ const REASONS = ['Expired', 'Damaged', 'Not sold'];
 
 // Column numbers on each count tab (A = 1, 0 = not used)
 // s1c / s2c: third count, used by croissants only (Frozen)
+// s2t: Thrown away today (Kitchen column M). At Shift 2, Old / New / Frozen mean what is LEFT on the shelf
+// after clearing; whatever was thrown away goes in column M, with the reason in column H.
 const LAYOUT = {
-  Bar:     { s1a: 4, s1b: 0, s1c: 0, s2a: 5, s2b: 0, s2c: 0, expOld: 0, expNew: 0, rsn: 0, note: 0, clear: [4, 5], lock: [4, 4], lock2: null },
-  Kitchen: { s1a: 5, s1b: 6, s1c: 11, s2a: 7, s2b: 9, s2c: 12, expOld: 3, expNew: 4, rsn: 8, note: 10, clear: [3, 12], lock: [3, 6], lock2: [11, 11] },
-  Weekly:  { s1a: 4, s1b: 0, s1c: 0, s2a: 0, s2b: 0, s2c: 0, expOld: 0, expNew: 0, rsn: 0, note: 0, clear: null, lock: null, lock2: null }
+  Bar:     { s1a: 4, s1b: 0, s1c: 0, s2a: 5, s2b: 0, s2c: 0, s2t: 0, expOld: 0, expNew: 0, rsn: 0, note: 0, clear: [4, 5], lock: [4, 4], lock2: null },
+  Kitchen: { s1a: 5, s1b: 6, s1c: 11, s2a: 7, s2b: 9, s2c: 12, s2t: 13, expOld: 3, expNew: 4, rsn: 8, note: 10, clear: [3, 13], lock: [3, 6], lock2: [11, 11] },
+  Weekly:  { s1a: 4, s1b: 0, s1c: 0, s2a: 0, s2b: 0, s2c: 0, s2t: 0, expOld: 0, expNew: 0, rsn: 0, note: 0, clear: null, lock: null, lock2: null }
 };
 
 function onOpen() {
@@ -219,7 +221,7 @@ function saveDay() {
         const cleared = function () {
           const reason = String(g(L.rsn));
           const parts = [];
-          if (REASONS.indexOf(reason) >= 0) parts.push(num(g(L.s2a)) + ' ' + reason.toLowerCase());
+          if (REASONS.indexOf(reason) >= 0 && Number(g(L.s2t)) > 0) parts.push(num(g(L.s2t)) + ' ' + reason.toLowerCase());
           if (g(L.note)) parts.push(String(g(L.note)));
           return parts.join('; ');
         };
@@ -315,6 +317,25 @@ function saveOrdered(date) {
   props.getKeys().forEach(function (k) { if (k.indexOf('ordered_') === 0 && k.slice(8) < limit) props.deleteProperty(k); });
 }
 
+// Today's calendar date in Dubai, at midnight
+function calendarToday_() {
+  return Utilities.parseDate(Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'), TZ, 'yyyy-MM-dd');
+}
+
+// Run once. The business day now runs from 4am to 4am: the count date in Bar C2 and Kitchen C2 only moves to
+// the next day at 4am, so anything saved between midnight and 4am is filed under the day of that shift.
+// Also makes the sheet recalculate every minute, so the date changes exactly at 4am.
+function setupBusinessDay() {
+  const ss = SpreadsheetApp.getActive();
+  const f = '=TODAY()-IF(HOUR(NOW())<4,1,0)';
+  ss.getSheetByName('Bar').getRange('C2').setFormula(f);
+  ss.getSheetByName('Kitchen').getRange('C2').setFormula(f);
+  ss.setRecalculationInterval(SpreadsheetApp.RecalculationInterval.MINUTE);
+  SpreadsheetApp.flush();
+  ss.toast('The business day now runs from 4am to 4am. Count date: ' +
+    Utilities.formatDate(ss.getSheetByName('Bar').getRange('C2').getValue(), TZ, 'EEE d MMM') + '.', 'Title Brew', 10);
+}
+
 // New day: unlock, clear Bar and Kitchen, clear Your change, fill in expiry dates. Weekly is kept.
 function clearCount() {
   const ss = SpreadsheetApp.getActive();
@@ -336,8 +357,10 @@ function clearCount() {
 
   // What was ordered yesterday: saved at 5pm / 11pm. (At 4am Today's Orders already shows
   // the new day, so it cannot be used, for example on Saturday it shows no orders at all.)
-  const todayDate = ss.getSheetByName('Bar').getRange('C2').getValue();
-  const yKey = todayDate instanceof Date ? Utilities.formatDate(new Date(todayDate.getTime() - 86400000), TZ, 'yyyy-MM-dd') : '';
+  // The new day is the calendar date now (at the 4am run, and for a manual run after midnight).
+  // It does not read Bar C2, which now only changes to the next day at 4am.
+  const todayDate = calendarToday_();
+  const yKey = Utilities.formatDate(new Date(todayDate.getTime() - 86400000), TZ, 'yyyy-MM-dd');
   let ordered = {};
   try {
     const props = PropertiesService.getScriptProperties();
@@ -370,8 +393,7 @@ function clearCount() {
   SpreadsheetApp.flush();
 
   // 4. Fill in today's expiry dates
-  const today = ss.getSheetByName('Bar').getRange('C2').getValue();
-  if (!(today instanceof Date)) return;
+  const today = todayDate;
   const todayKey = Utilities.formatDate(today, TZ, 'yyyy-MM-dd');
   // A date that has already passed means nothing is left of that batch
   const live = function (d) { return d instanceof Date && Utilities.formatDate(d, TZ, 'yyyy-MM-dd') >= todayKey ? d : ''; };
@@ -516,6 +538,63 @@ function draftBakeryEmail() {
   return lpoNo;
 }
 
+// Run once. Adds Kitchen column M "Thrown away" and moves today's clearances entered the old way
+// (the Shift 2 Old number plus a reason) into it. After this, Shift 2 Old / New / Frozen mean what is LEFT.
+function upgradeThrownAway() {
+  const ss = SpreadsheetApp.getActive();
+  const kit = ss.getSheetByName('Kitchen');
+  if (String(kit.getRange('M6').getValue()) === 'Thrown away') {
+    ss.toast('Thrown away column is already set up.', 'Title Brew', 6);
+    return;
+  }
+  const last = kit.getLastRow();
+  if (kit.getMaxColumns() < 13) kit.insertColumnsAfter(kit.getMaxColumns(), 13 - kit.getMaxColumns());
+
+  // 1. Look: same as the Shift 2 New column (headers and item rows)
+  kit.getRange(5, 9, last - 4, 1).copyTo(kit.getRange(5, 13, last - 4, 1), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  kit.setColumnWidth(13, 100);
+  kit.getRange('M5').setValue('THROWN AWAY');
+  kit.getRange('M6').setValue('Thrown away');
+  kit.getRange('H6').setValue('Why thrown away?');
+  const vals = kit.getRange(1, 1, last, 13).getValues();
+  vals.forEach(function (r, i) {
+    const row = i + 1;
+    if (row >= FIRST_ROW) return;
+    if (String(r[0]) === 'CROISSANTS') {
+      kit.getRange(row, 8).setValue('Why thrown away?');
+      kit.getRange(row, 13).setValue('Thrown away');
+    }
+  });
+  // Other section header rows (capitals) that repeat the column names
+  vals.forEach(function (r, i) {
+    const row = i + 1;
+    if (row < FIRST_ROW || !r[0] || String(r[0]) !== String(r[0]).toUpperCase()) return;
+    if (String(r[7]) === 'Cleared?') kit.getRange(row, 8).setValue('Why thrown away?');
+    if (String(r[6]) !== '' || String(r[8]) !== '') kit.getRange(row, 13).setValue('Thrown away');
+  });
+
+  // 2. Move today's old-style clearances: Shift 2 Old (G) with a reason (H), and the balls' Shift 2 Old
+  const rules = ss.getSheetByName('Rules');
+  const hasShelf = {};
+  rules.getRange(5, 1, rules.getLastRow() - 4, 26).getValues().forEach(function (r) { if (Number(r[25]) > 0) hasShelf[String(r[2])] = true; });
+  let moved = 0;
+  vals.forEach(function (r, i) {
+    const row = i + 1;
+    if (row < FIRST_ROW || !isItemRow(r)) return;
+    const sec = String(r[0]), item = String(r[1]);
+    if (sec.indexOf('Track') >= 0) return;
+    const old = Number(r[6]) || 0;
+    const reason = String(r[7]);
+    const isBall = sec !== 'Croissants' && !hasShelf[item];
+    if (old > 0 && (REASONS.indexOf(reason) >= 0 || isBall)) {
+      kit.getRange(row, 13).setValue(old);
+      kit.getRange(row, 7).setValue(0);
+      moved++;
+    }
+  });
+  ss.toast('Thrown away column is ready. ' + moved + ' clearance(s) moved into it.', 'Title Brew', 10);
+}
+
 // Writes today's clearances from the Kitchen tab into the Clearance Log tab (created automatically).
 // Running it again on the same day replaces that day's rows, so nothing is doubled.
 function logClearance(date) {
@@ -538,13 +617,14 @@ function logClearance(date) {
   }
   const kit = ss.getSheetByName('Kitchen');
   const L = LAYOUT.Kitchen;
-  const vals = kit.getRange(FIRST_ROW, 1, kit.getLastRow() - FIRST_ROW + 1, 10).getValues();
+  const vals = kit.getRange(FIRST_ROW, 1, kit.getLastRow() - FIRST_ROW + 1, 13).getValues();
   const rows = [];
   vals.forEach(function (r) {
     if (!isItemRow(r)) return;
     const reason = String(r[L.rsn - 1]);
     const note = String(r[L.note - 1] || '');
-    if (REASONS.indexOf(reason) >= 0) rows.push([date, String(r[1]), Number(r[L.s2a - 1]) || 0, reason, note]);
+    const qty = Number(r[L.s2t - 1]) || 0;
+    if (REASONS.indexOf(reason) >= 0 && qty > 0) rows.push([date, String(r[1]), qty, reason, note]);
     else if (note) rows.push([date, String(r[1]), '', '', note]);
   });
   if (rows.length) {

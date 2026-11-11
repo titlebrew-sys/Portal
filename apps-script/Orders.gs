@@ -12,6 +12,10 @@
  * WhatsApp suppliers: the app opens WhatsApp with the message written; the person picks the group.
  * Every draft and WhatsApp order is written to the "Orders Log" tab.
  * It reuses TZ (Code), spWho, spLocksFor, spTodayKey (StaffPage) and draftBakeryEmail, draftSupplierEmail (Code).
+ *
+ * Speed (11 Nov 2026): the Orders screen used to look up the sheet cell by cell for every supplier, and to
+ * read the Deliveries tab again for every supplier. Now orContext_ reads Today's Orders and the still coming
+ * list ONCE per load and every supplier is built from that copy. Nothing is written differently.
  */
 
 var OR_SHEET = "Today's Orders";
@@ -103,17 +107,40 @@ function orDoneToday_() {
   return out;
 }
 
-function orBlockData_(sh, b, sups, done) {
-  var coming = typeof dvStillComing_ === 'function' ? dvStillComing_() : {};
-  var first = b.items[0], lastRow = b.items[b.items.length - 1];
-  var v = sh.getRange(first, 1, lastRow - first + 1, 8).getDisplayValues();
-  var raw = sh.getRange(first, 5, lastRow - first + 1, 2).getValues();   // E your change, F final
+/**
+ * One copy of everything the supplier cards need, read once per load:
+ *   disp / raw: columns A to H of Today's Orders (shown text, and real values), all rows
+ *   coming: delayed items still coming (from the Deliveries tab)
+ *   delivery: delivery date text, e.g. "12 November"
+ */
+function orContext_(sh) {
+  sh = sh || SpreadsheetApp.getActive().getSheetByName(OR_SHEET);
+  var last = sh.getLastRow();
+  var rng = sh.getRange(1, 1, last, 8);
+  return {
+    sh: sh,
+    disp: rng.getDisplayValues(),
+    raw: rng.getValues(),
+    coming: typeof dvStillComing_ === 'function' ? dvStillComing_() : {},
+    delivery: orDeliveryText_()
+  };
+}
+
+// Shown text of one cell from the copy (row and column start at 1)
+function orCell_(ctx, row, col) {
+  var r = ctx.disp[row - 1];
+  return r && r[col - 1] !== undefined && r[col - 1] !== null ? String(r[col - 1]) : '';
+}
+
+function orBlockData_(sh, b, sups, done, ctx) {
+  ctx = ctx || orContext_(sh);
+  var coming = ctx.coming;
   var rows = b.items.map(function (row) {
-    var i = row - first, r = v[i];
+    var r = ctx.disp[row - 1], w = ctx.raw[row - 1];
     return {
       row: row, item: r[0], count: r[1], unit: r[2], suggested: r[3],
-      change: raw[i][0] === '' || raw[i][0] === null ? '' : String(raw[i][0]),
-      final: Number(raw[i][1]) || 0, finalText: r[5], orderUnit: r[6], notes: r[7],
+      change: w[4] === '' || w[4] === null ? '' : String(w[4]),      // column E your change
+      final: Number(w[5]) || 0, finalText: r[5], orderUnit: r[6], notes: r[7],   // column F final
       coming: coming[r[0]] || 0
     };
   });
@@ -121,16 +148,16 @@ function orBlockData_(sh, b, sups, done) {
   var kind = orKind_(b.name, s.how, s.to);
   return {
     name: b.name,
-    status: String(sh.getRange(b.head, 3).getDisplayValue()),
+    status: orCell_(ctx, b.head, 3),
     kind: kind, how: s.how, url: kind === 'website' ? s.to : '',
     emailTo: kind === 'bakery' || kind === 'email' ? s.to : '',
-    subject: 'Order. Title Brew for ' + orDeliveryText_(),
+    subject: 'Order. Title Brew for ' + ctx.delivery,
     rows: rows,
     toOrder: rows.some(function (x) { return x.final > 0; }),
-    message: b.msg ? String(sh.getRange(b.msg, 2).getDisplayValue()) : '',
-    check: b.check ? String(sh.getRange(b.check, 2).getDisplayValue()) : '',
-    lpo: b.lpo ? String(sh.getRange(b.lpo, 2).getDisplayValue()) : '',
-    lastLpo: kind === 'bakery' ? orLastLpo_(sh, b) : null,
+    message: b.msg ? orCell_(ctx, b.msg, 2) : '',
+    check: b.check ? orCell_(ctx, b.check, 2) : '',
+    lpo: b.lpo ? orCell_(ctx, b.lpo, 2) : '',
+    lastLpo: kind === 'bakery' ? orLastLpo_(sh, b, ctx) : null,
     done: done[b.name] || ''
   };
 }
@@ -148,15 +175,20 @@ function orDeliveryText_() {
  * The last LPO number used and when. The "LPO Number" row is found by its label (it moves when
  * items change): column B holds the number, column C the note "LPO N last used on <date>".
  * A copy is kept in Script Properties in case the row is rebuilt.
+ * ctx is optional: with it the sheet copy is used, without it the cells are read live.
  */
-function orLastLpo_(sh, b) {
-  var note = b.lpo ? String(sh.getRange(b.lpo, 3).getDisplayValue()) : '';
+function orLastLpo_(sh, b, ctx) {
+  // today: true when that number was used today, so it may be issued again if the file never reached the phone
+  var todayText = Utilities.formatDate(new Date(), TZ, 'EEE d MMM');
+  var note = b.lpo ? (ctx ? orCell_(ctx, b.lpo, 3) : String(sh.getRange(b.lpo, 3).getDisplayValue())) : '';
   var m = note.match(/LPO\s+(\d+)\s+last used on\s+([^.]+)/i);
-  if (m) return { no: Number(m[1]), on: m[2].trim() };
+  if (m) return { no: Number(m[1]), on: m[2].trim(), today: m[2].trim() === todayText };
   var saved = PropertiesService.getScriptProperties().getProperty('tb_last_lpo');
-  if (saved) { try { return JSON.parse(saved); } catch (e) { /* ignore */ } }
-  var n = b.lpo ? Number(sh.getRange(b.lpo, 2).getValue()) : 0;
-  return n > 0 ? { no: n, on: '' } : null;
+  if (saved) {
+    try { var p = JSON.parse(saved); p.today = String(p.on) === todayText; return p; } catch (e) { /* ignore */ }
+  }
+  var n = b.lpo ? Number(ctx ? ctx.raw[b.lpo - 1][1] : sh.getRange(b.lpo, 2).getValue()) : 0;
+  return n > 0 ? { no: n, on: '', today: false } : null;
 }
 
 /**
@@ -167,7 +199,8 @@ function orSetLpo_(sh, b, newLpo) {
   var typed = Number(String(newLpo === undefined || newLpo === null ? '' : newLpo).trim());
   var last = orLastLpo_(sh, b);
   if (!(typed > 0) || Math.round(typed) !== typed) return { ok: false, msg: 'Type the new LPO number.' };
-  if (last && typed <= last.no) return { ok: false, msg: 'The new LPO number must be higher than ' + last.no + '.' };
+  // Higher than the last number, or the same number again if it was used today (the file may never have reached the phone)
+  if (last && (typed < last.no || (typed === last.no && !last.today))) return { ok: false, msg: 'The new LPO number must be higher than ' + last.no + '.' };
   if (!b.lpo) return { ok: false, msg: 'The LPO Number row is missing on Today\'s Orders.' };
   sh.getRange(b.lpo, 2).setValue(typed);
   SpreadsheetApp.flush();
@@ -190,15 +223,16 @@ function spOrders(token) {
   var ss = SpreadsheetApp.getActive();
   var sh = ss.getSheetByName(OR_SHEET);
   var sups = orSuppliers_(), done = orDoneToday_();
-  var list = orBlocks_().map(function (b) { return orBlockData_(sh, b, sups, done); });
+  var ctx = orContext_(sh);   // one read for all suppliers
+  var list = orBlocks_().map(function (b) { return orBlockData_(sh, b, sups, done, ctx); });
   return {
     ok: true,
     open: orOpen_(name),
     manager: orIsManager_(name),
-    countDate: String(sh.getRange('B2').getDisplayValue()),
-    delivery: String(sh.getRange('B3').getDisplayValue()),
-    note: String(sh.getRange('D2').getDisplayValue()),
-    notCounted: String(sh.getRange('B4').getDisplayValue()),
+    countDate: orCell_(ctx, 2, 2),
+    delivery: orCell_(ctx, 3, 2),
+    note: orCell_(ctx, 2, 4),
+    notCounted: orCell_(ctx, 4, 2),
     saturday: Utilities.formatDate(new Date(), TZ, 'u') === '6',
     suppliers: list
   };
@@ -219,6 +253,7 @@ function spSetChange(token, row, value) {
   var cell = sh.getRange(Number(row), 5);
   if (v === '') cell.clearContent(); else cell.setValue(Number(v));
   SpreadsheetApp.flush();
+  // The copy of the sheet is made after the change is written, so the answer shows the new numbers
   return { ok: true, supplier: orBlockData_(sh, b, orSuppliers_(), orDoneToday_()) };
 }
 
@@ -292,7 +327,8 @@ function spLpoFile(token, newLpo) {
     var folders = DriveApp.getFoldersByName('Title Brew LPO files');
     var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder('Title Brew LPO files');
     var old = folder.getFiles(), weekAgo = Date.now() - 7 * 864e5;
-    while (old.hasNext()) { var f = old.next(); if (f.getDateCreated().getTime() < weekAgo) f.setTrashed(true); }
+    // Files older than 7 days go, and so does an earlier file with this same name (same number issued again)
+    while (old.hasNext()) { var f = old.next(); if (f.getDateCreated().getTime() < weekAgo || f.getName() === blob.getName()) f.setTrashed(true); }
     var file = folder.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     orLpoUsed_(sh, b, no);
