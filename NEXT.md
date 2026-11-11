@@ -194,3 +194,10 @@ away (spSendToPortal in PortalBridge.gs, called from Page.html after "Saved").
 - Page.html (APP): after Confirm delivery and Add arrival, the app now sends to the Portal straight away (spSendToPortal). Needs paste + New version.
 - Known gaps still open: Portal keeps its own pack sizes (oat milk showed 12, sheet says 8); a confirmed delivery's order date is guessed as the day before; deliveries confirmed more than 2 days late are not sent; thrown away is only read from Shift 2.
 - Pack sizes now follow the sheet: PortalBridge.gs sends Rules column B + K (`pack_sizes`), sheet-counts updates `rules.pack_size` (blank/0 cells skipped). Needs: paste PortalBridge.gs + New version, redeploy sheet-counts. Arsen: staff confirm deliveries the same day only; thrown away at Shift 2 (both already fine). Late-delivery suppliers: Arsen said "others", not named yet.
+
+## 11 Nov 2026: milk amounts settled, APP copies refreshed
+- Arsen confirmed the 10 Nov milk numbers: hot cups 200 ml; take-away Latte family (Latte, Spanish Latte, Matcha Latte, Latte Macchiato) and Mocha Belgian 313 ml; Cappuccino Large, RAF Large, Toffee Coffee Large 313 ml; iced drinks with milk 150 ml; "+ Size cold drink" makes an iced drink 250 ml in total (+100 ml). Flat White and Cortado 200 ml. Matcha Grey keeps 200 ml coconut base.
+- Changed: src/lib/catalog.ts (MILK_ML 200, MILK_LARGE 313, MILK_ICED 150, size rules), src/lib/recipeUpdate.ts (iced 150, take-away extra fixed from 108 to 113), usage.test.ts.
+- Arsen must press "Update now" on the Portal Recipes page to apply it to the live recipes. This replaces the old "milk amounts conflict" note.
+- apps-script/ copies now match live (Code.gs and Orders.gs refreshed 11 Nov). Deleted the stray folder "src 2".
+- Order logic items (combined Almond Cookies, Global Beverages 150 AED, order total warnings, free coconut case tracker, SAFCO amount) are sheet/APP work now: the Portal has no Orders page.

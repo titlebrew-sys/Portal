@@ -5,14 +5,14 @@
  */
 import type { Ingredient, ModifierRule, Recipe } from '../types';
 import {
-  BEAN_BAGS, BEAN_BAG_NOTE, COFFEE_GRAMS, COLD_BREWS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, MILK_EXCEPTIONS, MILK_LARGE, MILK_ML, NITRO_PER_SERVING, SPANISH_CONDENSED,
+  BEAN_BAGS, BEAN_BAG_NOTE, COFFEE_GRAMS, COLD_BREWS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, MILK_EXCEPTIONS, MILK_ICED, MILK_LARGE, MILK_ML, isIcedDrink, NITRO_PER_SERVING, SPANISH_CONDENSED,
   SPANISH_CONDENSED_TAKEAWAY, START_MODIFIER_RULES, FIXED_RECIPES, TAKEAWAY_TEA, isHotLatte, norm,
 } from './catalog';
 
 /** Ids of the starting rules this update adds or replaces. */
 const RULE_IDS = new Set([
   'mod-extrashot-brazil', 'mod-extrashot-ethiopia', 'mod-extrashot-extrashotbrazil', 'mod-extrashot-extrashotethiopia', 'mod-beans-ethiopiasidamofilter',
-  'mod-any-cappucinolarge', 'mod-any-flatwhitelarge8oz', 'mod-matchaorcoffee-coffee', 'mod-matchaorcoffee-matcha',
+  'mod-any-cappucinolarge', 'mod-any-raflarge', 'mod-any-toffeecoffeelarge', 'mod-any-flatwhitelarge8oz', 'mod-matchaorcoffee-coffee', 'mod-matchaorcoffee-matcha',
   'mod-iceteasweetner-any',
 ]);
 
@@ -66,18 +66,25 @@ export function updateRecipes(recipes: Recipe[], by: string): Recipe[] {
       }
       continue;
     }
-    // Milk: 214 ml in every cup, except the special ones
+    // Milk: 200 ml in every hot cup, 150 ml in iced drinks, except the special ones
+    const cupMilk = isIcedDrink(r.itemName) ? MILK_ICED : MILK_ML;
     if (!has(MILK_EXCEPTIONS, r.itemName))
       lines = lines.map((l) => {
-        if (l.role !== 'milk' || l.qty === MILK_ML) return l;
+        if (l.role !== 'milk' || l.qty === cupMilk) return l;
         changed = true;
-        return { ...l, qty: MILK_ML };
+        return { ...l, qty: cupMilk };
       });
     let takeaway = r.takeaway;
-    // Hot lattes: 322 ml take-away, so 108 ml more than in the cup
-    if (isHotLatte(r.itemName) && lines.some((l) => l.role === 'milk') && !takeaway.some((p) => p.role === 'milk')) {
-      takeaway = [...takeaway, { ingredientId: lines.find((l) => l.role === 'milk')!.ingredientId ?? 'milk-full-fat', qty: MILK_LARGE - MILK_ML, role: 'milk' }];
-      changed = true;
+    // Hot lattes and Mocha Belgian: 313 ml take-away, so 113 ml more than in the cup
+    if (isHotLatte(r.itemName) && lines.some((l) => l.role === 'milk')) {
+      const extra = MILK_LARGE - MILK_ML;
+      if (!takeaway.some((p) => p.role === 'milk')) {
+        takeaway = [...takeaway, { ingredientId: lines.find((l) => l.role === 'milk')!.ingredientId ?? 'milk-full-fat', qty: extra, role: 'milk' }];
+        changed = true;
+      } else if (takeaway.some((p) => p.role === 'milk' && p.qty !== extra)) {
+        takeaway = takeaway.map((p) => (p.role === 'milk' ? { ...p, qty: extra } : p));
+        changed = true;
+      }
     }
     // Spanish Latte condensed milk: 25 g dine-in, 35 g take-away
     if (norm(r.itemName) === norm('Spanish Latte')) {
