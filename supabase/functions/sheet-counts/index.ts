@@ -150,6 +150,22 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Pack sizes from the sheet's Rules tab: the sheet is the one place to change them
+  let packsChanged = 0;
+  const packSizes: { order_item: string; pack: number }[] = Array.isArray((body as any).pack_sizes) ? (body as any).pack_sizes : [];
+  if (packSizes.length) {
+    const { data: all } = await db.from('rules').select('id, order_item, pack_size');
+    for (const p of packSizes) {
+      const pack = num(p.pack);
+      if (!pack || pack <= 0) continue;
+      for (const r of (all ?? []).filter((x: any) => norm(x.order_item) === norm(p.order_item) && Number(x.pack_size) !== pack)) {
+        const { error } = await db.from('rules').update({ pack_size: pack }).eq('id', r.id);
+        if (error) errors.push(`Pack size ${p.order_item}: ${error.message}`);
+        else packsChanged++;
+      }
+    }
+  }
+
   // Orders from the sheet become deliveries, one per supplier per day
   let ordersSaved = 0;
   const unknownOrders = new Set<string>();
@@ -284,6 +300,7 @@ Deno.serve(async (req) => {
 
   const parts = [`${saved} counts saved or changed`];
   if (coldBrewSaved) parts.push(`${coldBrewSaved} cold brew answers`);
+  if (packsChanged) parts.push(`${packsChanged} pack sizes updated from the sheet`);
   if (mirrorSaved) parts.push(`sheet orders copied (${mirror!.suppliers.length} suppliers)`);
   if (deliveriesSaved) parts.push(`${deliveriesSaved} deliveries`);
   if (ordersSaved) parts.push(`${ordersSaved} supplier orders`);

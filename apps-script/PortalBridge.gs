@@ -43,12 +43,13 @@ function portalBridgeSend(savedBy) {
     var batches = portalBridgeBatches_(savedBy).concat(portalBridgeHistory_());
     var orders = portalBridgeOrders_();
     var coldBrew = portalBridgeColdBrew_();
+    var packSizes = portalBridgePackSizes_();
     if (!batches.length && !orders.length && !deliveries.length && !coldBrew.length) { portalBridgeLog_('Nothing to send', 'No counts on the sheet yet today.'); return; }
     var res = UrlFetchApp.fetch(url, {
       method: 'post',
       contentType: 'application/json',
       headers: { 'x-bridge-secret': secret },
-      payload: JSON.stringify({ batches: batches, orders: orders, deliveries: deliveries, cold_brew: coldBrew }),
+      payload: JSON.stringify({ batches: batches, orders: orders, deliveries: deliveries, cold_brew: coldBrew, pack_sizes: packSizes }),
       muteHttpExceptions: true,
     });
     var code = res.getResponseCode();
@@ -243,6 +244,21 @@ function portalBridgeBusinessKey_() {
  * Yes = one batch of 180 g Ethiopia beans. Not made (or no answer) = 0 g. The batch is placed one minute
  * before the count of that shift, so it belongs to the time between the two counts.
  */
+/**
+ * Pack sizes from the Rules tab (column B order item, column K count units per order unit), so the Portal
+ * uses the same numbers as the sheet. A blank or zero cell is skipped (the Portal keeps what it has).
+ */
+function portalBridgePackSizes_() {
+  var out = [];
+  var rules = SpreadsheetApp.getActive().getSheetByName('Rules');
+  if (!rules || rules.getLastRow() < 5) return out;
+  rules.getRange(5, 1, rules.getLastRow() - 4, 11).getValues().forEach(function (r) {
+    var pack = Number(r[10]);
+    if (r[1] && pack > 0) out.push({ order_item: String(r[1]), pack: pack });
+  });
+  return out;
+}
+
 function portalBridgeColdBrew_() {
   try {
     var sh = SpreadsheetApp.getActive().getSheetByName('Cold Brew Log');
