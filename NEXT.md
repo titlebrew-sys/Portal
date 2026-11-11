@@ -201,3 +201,4 @@ away (spSendToPortal in PortalBridge.gs, called from Page.html after "Saved").
 - Arsen must press "Update now" on the Portal Recipes page to apply it to the live recipes. This replaces the old "milk amounts conflict" note.
 - apps-script/ copies now match live (Code.gs and Orders.gs refreshed 11 Nov). Deleted the stray folder "src 2".
 - Order logic items (combined Almond Cookies, Global Beverages 150 AED, order total warnings, free coconut case tracker, SAFCO amount) are sheet/APP work now: the Portal has no Orders page.
+- Removed unused order code from the Portal (Portal is monitoring only): src/views/Lpo.tsx, src/lib/lpo.ts, src/lib/messages.ts, src/lib/count.ts, their tests, and src/assets/bakery-lpo-template.xlsx. Order suggestions code in src/lib/ordering.ts stays: Today, Stock and Differences still use it.

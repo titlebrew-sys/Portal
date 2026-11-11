@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { demoData } from '../data/seed';
 import { coverDays, deliveryDate, plan } from './ordering';
-import { orderMessage } from './messages';
 import { businessDate, isShift1Locked } from './time';
 
 // 5 Nov 2026 is a Thursday: the day the prototype data was taken.
@@ -53,23 +52,6 @@ describe('delivery days', () => {
   it('Saturday order skips Sunday and covers 3 days', () => {
     expect(deliveryDate(almarai, '2026-11-07')).toBe('2026-11-09');
     expect(coverDays(almarai, '2026-11-07', 1)).toBe(3);
-  });
-});
-
-describe('messages', () => {
-  it('WhatsApp message uses opening and closing lines', () => {
-    const data = demoData(DAY);
-    const p = plan(data, DAY).find((x) => x.supplier.name === 'Almarai')!;
-    const lines = p.lines.filter((l) => l.qty > 0).map((l) => ({ ruleId: l.rule.id, name: l.rule.orderItem, qty: l.qty, unit: l.rule.orderUnit, price: l.rule.price }));
-    expect(orderMessage(p.supplier, lines, p.deliveryDate)).toBe(
-      'Hello\nFor tomorrow I need\n6 pcs Full Fat Milk 2L\n1 pcs Low Fat Milk 2L\nChange for 200aed please\nThank you',
-    );
-  });
-  it('The Bakery email names the delivery time, 10am on Saturday', () => {
-    const bakery = demoData(DAY).suppliers.find((s) => s.name === 'The Bakery')!;
-    const line = [{ ruleId: 'x', name: 'x', qty: 1, unit: 'pcs', price: 1 }];
-    expect(orderMessage(bakery, line, '2026-11-06')).toBe('Hello\nPFA order for 7.30am delivery\nThank you');
-    expect(orderMessage(bakery, line, '2026-11-07')).toBe('Hello\nPFA order for 10am delivery\nThank you');
   });
 });
 
