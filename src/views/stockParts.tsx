@@ -78,12 +78,12 @@ export function UsedList({ used, unit }: { used: UseBit[]; unit: string }) {
 }
 
 /** One count compared with what was expected, in words, every number tappable. */
-export function StepCard({ ing, step, weekly = false }: { ing: Ingredient; step: Step; weekly?: boolean }) {
+export function StepCard({ ing, step, weekly = false, whole = false }: { ing: Ingredient; step: Step; weekly?: boolean; whole?: boolean }) {
   const u = ing.unit;
   return (
     <div className={'item' + (step.over ? ' flag' : '')} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
       <div className="panel-h">
-        <b>{countLabel(step.to, weekly)}</b>
+        <b>{whole ? `Whole day, ${fmtShortDate(step.to.businessDate)}` : countLabel(step.to, weekly)}</b>
         <span className={'pill ' + diffClass(step)}>
           {step.over ? 'Above the limit' : step.assumedRoast ? 'Roast weight assumed' : isMissing(step.difference) ? 'Missing, within the limit' : 'Within the limit'}: {signed(step.difference, u)}{step.pct !== null ? ` (${step.pct > 0 ? '+' : ''}${step.pct}%)` : ''}
         </span>
