@@ -154,7 +154,7 @@ export function lineUses(book: RecipeBook, line: Pick<SaleLine, 'itemId' | 'item
         let id = e.ingredientId;
         if (e.byItem) id = Object.entries(e.byItem).find(([k]) => norm(recipe.itemName).includes(norm(k)))?.[1];
         if (!id && e.role) id = roleIngredient(ctx, recipe, e.role);
-        if (id) ctx.uses.push({ ingredientId: id, qty: e.qty, why: `Choice ${choice}` });
+        if (id) ctx.uses.push({ ingredientId: id, qty: takeaway && e.takeawayQty !== undefined ? e.takeawayQty : e.qty, why: `Choice ${choice}` });
       } else if (e.type === 'spread') {
         ctx.uses.push({ ingredientId: SPREAD + e.among.join(','), qty: e.qty, why: `Choice ${choice}` });
       } else if (e.type === 'swapCup') swaps.push({ from: e.from, to: e.to });
@@ -166,7 +166,7 @@ export function lineUses(book: RecipeBook, line: Pick<SaleLine, 'itemId' | 'item
   }
   for (const p of pack) {
     const id = p.role === 'milk' ? roleIngredient(ctx, recipe, 'milk') : p.ingredientId;
-    ctx.uses.push({ ingredientId: id, qty: p.qty, why: p.role === 'milk' ? 'Take-away, larger cup: more milk' : 'Take-away' });
+    ctx.uses.push({ ingredientId: id, qty: p.qty, why: p.role === 'milk' ? (p.qty < 0 ? 'Take-away, smaller pour: less milk' : 'Take-away, larger cup: more milk') : 'Take-away' });
   }
   return { uses: ctx.uses, noRecipe: false };
 }

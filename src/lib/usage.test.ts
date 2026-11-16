@@ -82,7 +82,7 @@ describe('acceptance: exact ingredients for known sales', () => {
     expect(uses('Flat White', [{ group: 'Extra Shot', option: 'Extra Shot (Brazil)' }])['bean-brazil']).toBe(36);
     expect(uses('Latte', [{ group: 'Beans', option: 'Ethiopia Sidamo (Filter)' }])['bean-sidamo']).toBe(18);
   });
-  it('Milk: 200 ml hot cups; take-away Latte family and Mocha Belgian 313; iced 150; Flat White and Cortado 200; Spanish condensed 25 / 35 g', () => {
+  it('Milk: 200 ml hot cups; take-away Latte family and Mocha Belgian 313; iced 285 dine-in / 170 take-away; Flat White and Cortado 200; Spanish condensed 25 / 35 g', () => {
     expect(uses('Latte')['milk-full-fat']).toBe(200);
     expect(uses('Latte', [], true)['milk-full-fat']).toBe(313);
     expect(uses('Latte', [{ group: 'Alternative Milk', option: 'Oat' }], true)['milk-oat']).toBe(313);
@@ -92,8 +92,8 @@ describe('acceptance: exact ingredients for known sales', () => {
     expect(uses('Cappuccino', [], true)['milk-full-fat']).toBe(200);
     expect(uses('Spanish Latte')['condensed-milk']).toBe(25);
     expect(uses('Spanish Latte', [], true)['condensed-milk']).toBe(35);
-    expect(uses('Ice Latte')['milk-full-fat']).toBe(150);
-    expect(uses('Ice Latte', [], true)['milk-full-fat']).toBe(150);
+    expect(uses('Ice Latte')['milk-full-fat']).toBe(285);
+    expect(uses('Ice Latte', [], true)['milk-full-fat']).toBe(170);
     expect(uses('Flat White', [], true)['milk-full-fat']).toBe(200);
   });
   it('the live update fixes a take-away latte that still has the old 108 ml extra', () => {
@@ -133,7 +133,9 @@ describe('receipts', () => {
     expect(t.get('cup-16oz-pet')).toBe(1);
     expect(t.get('cup-12oz-pet') ?? 0).toBe(0);
     expect(t.get('bean-brazil')).toBe(36); // 18 + 18
-    expect(t.get('milk-full-fat')).toBe(250); // 150 (iced) + 100 (size)
+    expect(t.get('milk-full-fat')).toBe(250); // take-away: 170 (iced) + 80 (size)
+    const d = totalsByIngredient(receiptUsage(book, [receipt([['Ice Latte', []], ['+ Size cold drink', [{ group: 'Matcha or Coffee', option: 'Coffee' }]]], { dining: 'Dine in' })]));
+    expect(d.get('milk-full-fat')).toBe(313); // dine-in: 285 (iced) + 28 (size)
   });
   it('dine in uses no packaging; refunds give usage back; cancelled is ignored', () => {
     expect(totalsByIngredient(receiptUsage(book, [receipt([['Ice Latte', []]], { dining: 'Dine in' })])).get('cup-12oz-pet')).toBeUndefined();

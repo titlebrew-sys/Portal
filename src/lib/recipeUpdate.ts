@@ -5,7 +5,7 @@
  */
 import type { Ingredient, ModifierRule, Recipe } from '../types';
 import {
-  BEAN_BAGS, BEAN_BAG_NOTE, COFFEE_GRAMS, COLD_BREWS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, MILK_EXCEPTIONS, MILK_ICED, MILK_LARGE, MILK_ML, isIcedDrink, NITRO_PER_SERVING, SPANISH_CONDENSED,
+  BEAN_BAGS, BEAN_BAG_NOTE, COFFEE_GRAMS, COLD_BREWS, ETHIOPIA_DEFAULT, FILTER_DRINKS, FILTER_GRAMS, MILK_EXCEPTIONS, MILK_ICED, MILK_ICED_TAKEAWAY, MILK_LARGE, MILK_ML, isIcedDrink, NITRO_PER_SERVING, SPANISH_CONDENSED,
   SPANISH_CONDENSED_TAKEAWAY, START_MODIFIER_RULES, FIXED_RECIPES, TAKEAWAY_TEA, isHotLatte, norm,
 } from './catalog';
 
@@ -83,6 +83,17 @@ export function updateRecipes(recipes: Recipe[], by: string): Recipe[] {
         changed = true;
       } else if (takeaway.some((p) => p.role === 'milk' && p.qty !== extra)) {
         takeaway = takeaway.map((p) => (p.role === 'milk' ? { ...p, qty: extra } : p));
+        changed = true;
+      }
+    }
+    // Iced drinks with milk: 285 ml dine-in, 170 ml take-away, so 115 ml less in the take-away pack
+    if (isIcedDrink(r.itemName) && lines.some((l) => l.role === 'milk')) {
+      const less = MILK_ICED_TAKEAWAY - MILK_ICED;
+      if (!takeaway.some((p) => p.role === 'milk')) {
+        takeaway = [...takeaway, { ingredientId: lines.find((l) => l.role === 'milk')!.ingredientId ?? 'milk-full-fat', qty: less, role: 'milk' }];
+        changed = true;
+      } else if (takeaway.some((p) => p.role === 'milk' && p.qty !== less)) {
+        takeaway = takeaway.map((p) => (p.role === 'milk' ? { ...p, qty: less } : p));
         changed = true;
       }
     }

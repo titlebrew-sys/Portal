@@ -157,12 +157,14 @@ export const SIZE_COLD_DRINK = norm('+ Size cold drink');
 
 /**
  * Milk in one cup (Arsen, 10 and 11 Nov): hot drinks 200 ml; take-away Latte family, Mocha Belgian and the Large drinks 313 ml;
- * iced drinks with milk 150 ml, and "+ Size cold drink" makes the iced drink 250 ml in total.
+ * iced drinks with milk 285 ml dine-in and 170 ml take-away; "+ Size cold drink" makes the iced drink 313 ml dine-in and 250 ml take-away in total.
  */
 export const MILK_ML = 200;
 export const MILK_LARGE = 313;
-export const MILK_ICED = 150;
-export const MILK_ICED_SIZE_TOTAL = 250;
+export const MILK_ICED = 285;
+export const MILK_ICED_TAKEAWAY = 170;
+export const MILK_ICED_SIZE_TOTAL = 313;
+export const MILK_ICED_SIZE_TOTAL_TAKEAWAY = 250;
 /** Iced drinks are named "Ice ..." or "Iced ...". */
 export const isIcedDrink = (name: string) => /^ice/i.test(name.trim());
 /** Milk drinks that keep their own milk amount (not 200). */
@@ -170,7 +172,7 @@ export const MILK_EXCEPTIONS = ['Matcha Grey', 'Babyccino'];
 /** Spanish Latte condensed milk: dine-in 25 g, take-away 35 g. */
 export const SPANISH_CONDENSED = 25;
 export const SPANISH_CONDENSED_TAKEAWAY = 35;
-/** Hot lattes (all kinds, incl. Latte Macchiato) and Mocha Belgian are 313 ml take-away. Iced ones use 150 ml. */
+/** Hot lattes (all kinds, incl. Latte Macchiato) and Mocha Belgian are 313 ml take-away. Iced ones use 285 ml dine-in, 170 ml take-away. */
 export const isHotLatte = (name: string) => (/latte/i.test(name) || norm(name) === 'mochabelgian') && !isIcedDrink(name);
 
 /**
@@ -223,8 +225,8 @@ export const START_MODIFIER_RULES: ModifierRule[] = [
   rule('Croissant', 'Raisin/Cinnamon Swirl', [{ type: 'add', qty: 1, ingredientId: 'kit-cinnamon-swirl' }]),
   rule('Croissant', 'Plain', [{ type: 'add', qty: 1, ingredientId: 'kit-plain-croissant' }]),
   ...CLASSIC.map((o) => rule('Classic Coffee', o, [{ type: 'recipeOf' }])),
-  rule('Matcha or Coffee', 'Coffee', [{ type: 'add', qty: 18, role: 'coffee' }, { type: 'add', qty: MILK_ICED_SIZE_TOTAL - MILK_ICED, role: 'milk' }]),
-  rule('Matcha or Coffee', 'Matcha', [{ type: 'add', qty: 3, ingredientId: 'matcha' }, { type: 'add', qty: MILK_ICED_SIZE_TOTAL - MILK_ICED, role: 'milk' }]),
+  rule('Matcha or Coffee', 'Coffee', [{ type: 'add', qty: 18, role: 'coffee' }, { type: 'add', qty: MILK_ICED_SIZE_TOTAL - MILK_ICED, takeawayQty: MILK_ICED_SIZE_TOTAL_TAKEAWAY - MILK_ICED_TAKEAWAY, role: 'milk' }]),
+  rule('Matcha or Coffee', 'Matcha', [{ type: 'add', qty: 3, ingredientId: 'matcha' }, { type: 'add', qty: MILK_ICED_SIZE_TOTAL - MILK_ICED, takeawayQty: MILK_ICED_SIZE_TOTAL_TAKEAWAY - MILK_ICED_TAKEAWAY, role: 'milk' }]),
 ];
 
 // ---------------------------------------------------------------- recipe corrections from Rimma

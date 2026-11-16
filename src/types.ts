@@ -294,7 +294,7 @@ export interface Recipe {
 export type ModifierEffect =
   | { type: 'milk'; ingredientId: string }
   | { type: 'bean'; ingredientId: string }
-  | { type: 'add'; qty: number; ingredientId?: string; role?: LineRole; byItem?: Record<string, string> }
+  | { type: 'add'; qty: number; takeawayQty?: number; ingredientId?: string; role?: LineRole; byItem?: Record<string, string> }
   | { type: 'spread'; qty: number; among: string[] }
   | { type: 'recipeOf' }
   | { type: 'swapCup'; from: string; to: string }
