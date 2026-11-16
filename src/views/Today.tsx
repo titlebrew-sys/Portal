@@ -156,7 +156,7 @@ function DifferenceAlerts() {
     if (!data.book.ingredients.length) return [];
     const seen = new Set<string>();
     return differenceRows(data.book.ingredients.filter((i) => i.active), sd.inputs, from, today).filter((r) => {
-      if (r.day || !r.step.over || seen.has(r.ing.id)) return false;
+      if (!r.step.over || seen.has(r.ing.id)) return false;
       seen.add(r.ing.id);
       return true;
     });
