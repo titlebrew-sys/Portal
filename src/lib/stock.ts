@@ -233,12 +233,12 @@ export function steps(ing: Ingredient, inp: StockInputs): Step[] {
 
 /**
  * The whole business day as one step: from the last count before the day (usually last night's Shift 2)
- * to the last count of the day. Needs two or more counts in the day, otherwise it is the same as the one count row.
+ * to the last count of the day (or to the count given, when all is cut off there). With only one count in the day it equals that count's own step.
  * Same maths as the shift rows added together: last count + all arrivals - all sales use - all waste.
  */
 export function wholeDay(ing: Ingredient, businessDate: string, all: Step[]): Step | null {
   const day = all.filter((s) => s.to.businessDate === businessDate);
-  if (day.length < 2) return null;
+  if (!day.length) return null;
   const first = day[0];
   const last = day[day.length - 1];
   const arrived = day.flatMap((s) => s.arrived);
