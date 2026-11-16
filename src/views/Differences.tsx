@@ -8,23 +8,24 @@ import { downloadBytes, makeXlsx } from '../lib/xlsxWrite';
 import type { Ingredient } from '../types';
 import { DateRange, StepCard, amt, countLabel, signed } from './stockParts';
 
-export interface DiffRow { ing: Ingredient; step: Step; /** True for the whole-day row: last night's count to the last count of the day. */ day?: boolean }
+export interface DiffRow {
+  ing: Ingredient;
+  step: Step;
+  /** Last night's count to this count, added up over the business day so far. On the first count of the day it equals the step itself. Not for weekly counts. */
+  dayStep: Step | null;
+}
 
-/** Every count of every ingredient in the range, newest first. Each day with two or more counts also gets one whole-day row. */
+/** Every count of every ingredient in the range, newest first. */
 export function differenceRows(ings: Ingredient[], inputs: Parameters<typeof steps>[1], from: string, to: string): DiffRow[] {
   const rows: DiffRow[] = [];
   for (const ing of ings) {
     const all = steps(ing, inputs);
-    for (const step of all) if (step.to.businessDate >= from && step.to.businessDate <= to) rows.push({ ing, step });
-    if (ing.countFrom.includes('wk-')) continue;
-    for (const date of new Set(all.map((s) => s.to.businessDate)))
-      if (date >= from && date <= to) {
-        const step = wholeDay(ing, date, all);
-        if (step) rows.push({ ing, step, day: true });
-      }
+    const weekly = ing.countFrom.includes('wk-');
+    for (const step of all)
+      if (step.to.businessDate >= from && step.to.businessDate <= to)
+        rows.push({ ing, step, dayStep: weekly ? null : wholeDay(ing, step.to.businessDate, all.filter((s) => s.to.at <= step.to.at)) });
   }
-  // Newest first; on the same count the whole-day row comes before the shift row
-  return rows.sort((a, b) => (a.step.to.at < b.step.to.at ? 1 : a.step.to.at > b.step.to.at ? -1 : a.day !== b.day ? (a.day ? -1 : 1) : a.ing.sort - b.ing.sort));
+  return rows.sort((a, b) => (a.step.to.at < b.step.to.at ? 1 : a.step.to.at > b.step.to.at ? -1 : a.ing.sort - b.ing.sort));
 }
 
 export function Differences() {
@@ -41,12 +42,12 @@ export function Differences() {
   );
 
   function exportXlsx() {
-    const header = ['Count', 'Date', 'Shift', 'Ingredient', 'Unit', 'Last count', 'Arrived', 'Used by sales', 'Thrown away', 'Expected', 'Counted', 'Difference', 'Difference %', 'Limit %', 'Above limit', 'Counted by'];
-    const body = rows.map(({ ing, step: s, day }) => [
-      day ? `Whole day, ${fmtShortDate(s.to.businessDate)}` : countLabel(s.to), s.to.businessDate, day ? 'Whole day' : s.to.shift, ing.name, ing.unit, s.from.value, s.arrivedTotal, round(s.usedTotal), s.wasteTotal, round(s.expected), s.counted,
-      round(s.difference), s.pct, ing.unit === 'pcs' ? 0 : ing.limitPct, s.over ? 'Yes' : 'No', s.to.countedBy,
+    const header = ['Count', 'Date', 'Shift', 'Ingredient', 'Unit', 'Last count', 'Arrived', 'Used by sales', 'Thrown away', 'Expected', 'Counted', 'Difference', 'Difference %', 'Whole day difference', 'Limit %', 'Above limit', 'Counted by'];
+    const body = rows.map(({ ing, step: s, dayStep }) => [
+      countLabel(s.to), s.to.businessDate, s.to.shift, ing.name, ing.unit, s.from.value, s.arrivedTotal, round(s.usedTotal), s.wasteTotal, round(s.expected), s.counted,
+      round(s.difference), s.pct, dayStep ? round(dayStep.difference) : '', ing.unit === 'pcs' ? 0 : ing.limitPct, s.over ? 'Yes' : 'No', s.to.countedBy,
     ]);
-    downloadBytes(makeXlsx('Differences', header, body, [26, 12, 7, 26, 6, 12, 10, 14, 12, 12, 12, 12, 12, 9, 11, 14]), `Title Brew differences ${from} to ${to}.xlsx`);
+    downloadBytes(makeXlsx('Differences', header, body, [26, 12, 7, 26, 6, 12, 10, 14, 12, 12, 12, 12, 12, 14, 9, 11, 14]), `Title Brew differences ${from} to ${to}.xlsx`);
   }
 
   return (
@@ -72,17 +73,21 @@ export function Differences() {
         <div className="panel">
           <div className="tbl-wrap">
             <table>
-              <thead><tr><th>Count</th><th>Ingredient</th><th className="n">Expected</th><th className="n">Counted</th><th className="n">Difference</th></tr></thead>
+              <thead><tr><th>Count</th><th>Ingredient</th><th className="n">Expected</th><th className="n">Counted</th><th className="n">Difference</th><th className="n">Whole day</th></tr></thead>
               <tbody>
                 {rows.map((r, i) => [
-                  <tr key={i} className="clickable" style={r.day ? { fontWeight: 600 } : undefined} onClick={() => setOpen(open === i ? null : i)}>
-                    <td style={{ whiteSpace: 'nowrap' }}><b>{fmtShortDate(r.step.to.businessDate)}</b><span className="why">{r.day ? `Whole day, from ${fmtShortDate(r.step.from.businessDate)} ${fmtDubaiTime(r.step.from.at)} count` : r.ing.countFrom.includes('wk-') ? 'Weekly' : `Shift ${r.step.to.shift}`}{r.day ? '' : `, ${fmtDubaiTime(r.step.to.at)}`}</span></td>
+                  <tr key={i} className="clickable" onClick={() => setOpen(open === i ? null : i)}>
+                    <td style={{ whiteSpace: 'nowrap' }}><b>{fmtShortDate(r.step.to.businessDate)}</b><span className="why">{r.ing.countFrom.includes('wk-') ? 'Weekly' : `Shift ${r.step.to.shift}`}, {fmtDubaiTime(r.step.to.at)}</span></td>
                     <td>{r.ing.name}</td>
                     <td className="n">{amt(r.step.expected, r.ing.unit)}{soldMoreThanCounted(r.step.expected) > 0 && <span className="why">Sold more than was counted</span>}</td>
                     <td className="n">{amt(r.step.counted, r.ing.unit)}</td>
                     <td className="n"><span className={'pill ' + diffClass(r.step)}>{signed(r.step.difference, r.ing.unit)}{r.step.pct !== null ? ` (${r.step.pct}%)` : ''}</span></td>
+                    <td className="n">{r.dayStep ? <span className={'pill ' + diffClass(r.dayStep)}>{signed(r.dayStep.difference, r.ing.unit)}{r.dayStep.pct !== null ? ` (${r.dayStep.pct}%)` : ''}</span> : <span className="why">-</span>}</td>
                   </tr>,
-                  open === i && <tr key={i + 'x'}><td colSpan={5}><StepCard ing={r.ing} step={r.step} weekly={r.ing.countFrom.includes('wk-')} whole={r.day} /></td></tr>,
+                  open === i && <tr key={i + 'x'}><td colSpan={6}>
+                    <StepCard ing={r.ing} step={r.step} weekly={r.ing.countFrom.includes('wk-')} />
+                    {r.dayStep && r.dayStep.from.at !== r.step.from.at && <StepCard ing={r.ing} step={r.dayStep} whole />}
+                  </td></tr>,
                 ])}
               </tbody>
             </table>
