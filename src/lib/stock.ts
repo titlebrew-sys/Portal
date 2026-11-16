@@ -231,6 +231,28 @@ export function steps(ing: Ingredient, inp: StockInputs): Step[] {
   return out;
 }
 
+/**
+ * The whole business day as one step: from the last count before the day (usually last night's Shift 2)
+ * to the last count of the day. Needs two or more counts in the day, otherwise it is the same as the one count row.
+ * Same maths as the shift rows added together: last count + all arrivals - all sales use - all waste.
+ */
+export function wholeDay(ing: Ingredient, businessDate: string, all: Step[]): Step | null {
+  const day = all.filter((s) => s.to.businessDate === businessDate);
+  if (day.length < 2) return null;
+  const first = day[0];
+  const last = day[day.length - 1];
+  const arrived = day.flatMap((s) => s.arrived);
+  const used = day.flatMap((s) => s.used);
+  const waste = day.flatMap((s) => s.waste);
+  const expected = r3(first.from.value + sum(arrived) - sum(used) - sum(waste));
+  const difference = r3(last.counted - expected);
+  return {
+    from: first.from, to: last.to, arrived, used, waste, arrivedTotal: sum(arrived), usedTotal: sum(used), wasteTotal: sum(waste),
+    expected, counted: last.counted, difference, pct: expected ? Math.round((difference / expected) * 1000) / 10 : null,
+    over: isOver(ing, difference, expected, last.counted), assumedRoast: day.some((s) => s.assumedRoast),
+  };
+}
+
 export interface Level {
   last: Snapshot | null;
   arrivedTotal: number;
