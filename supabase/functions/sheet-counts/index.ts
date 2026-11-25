@@ -270,6 +270,25 @@ Deno.serve(async (req) => {
     }
   }
 
+  // A shop or extra delivery deleted in the staff app no longer comes in the list: remove the Portal's copy too.
+  // Only for the days the app sent, only when the list had no save error, and never the sheet's own orders.
+  let deliveriesRemoved = 0;
+  if (deliveries.length && !errors.some((e) => e.startsWith('Deliveries'))) {
+    const days = [...new Set(deliveries.map((dv) => date(dv.business_date)).filter((d): d is string => !!d))];
+    const keep = new Set<string>();
+    for (const dv of deliveries) if (dv.kind !== 'order') keep.add(await stableId(`sheet-extra|${dv.id}`));
+    const { data: stored, error: listErr } = await db.from('orders').select('id').in('business_date', days).eq('location_id', LOCATION).like('received_by', '%(not ordered)');
+    if (listErr) errors.push(`Deliveries removed: ${listErr.message}`);
+    else {
+      const gone = (stored ?? []).map((r: any) => r.id).filter((id: string) => !keep.has(id));
+      if (gone.length) {
+        const { error: delErr } = await db.from('orders').delete().in('id', gone);
+        if (delErr) errors.push(`Deliveries removed: ${delErr.message}`);
+        else deliveriesRemoved = gone.length;
+      }
+    }
+  }
+
   // The sheet's Today's Orders, copied as it is (replaces the last copy)
   const mirror: SheetMirror | null = (body as any).sheet_orders && Array.isArray((body as any).sheet_orders.suppliers) ? (body as any).sheet_orders : null;
   let mirrorSaved = false;
@@ -303,6 +322,7 @@ Deno.serve(async (req) => {
   if (packsChanged) parts.push(`${packsChanged} pack sizes updated from the sheet`);
   if (mirrorSaved) parts.push(`sheet orders copied (${mirror!.suppliers.length} suppliers)`);
   if (deliveriesSaved) parts.push(`${deliveriesSaved} deliveries`);
+  if (deliveriesRemoved) parts.push(`${deliveriesRemoved} deleted deliveries removed`);
   if (ordersSaved) parts.push(`${ordersSaved} supplier orders`);
   if (unknownOrders.size) parts.push(`order items not matched: ${[...unknownOrders].join(', ')}`);
   if (wasteSaved) parts.push(`${wasteSaved} thrown away`);
