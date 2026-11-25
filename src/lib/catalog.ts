@@ -31,7 +31,7 @@ export const START_INGREDIENTS: Ingredient[] = [
   // Drinks
   ing('orange-juice', 'Orange juice', 'ml', '1000*bar-orange-juice'),
   ing('tonic-water', 'Tonic water', 'ml', '', 'Fill in the ml in one can to compare with counts.'),
-  ing('complimentary-sparkling', 'Complimentary sparkling water', 'ml', '1000*bar-complimentary-sparkling-water'),
+  ing('complimentary-sparkling', 'Complimentary sparkling water', 'ml', '500*bar-complimentary-sparkling-water'),
   ing('still-water', 'Still water', 'pcs', 'bar-still-water'),
   ing('sparkling-water', 'Sparkling water', 'pcs', 'bar-sparkling-water'),
   ing('pomegranate-juice', 'Pomegranate juice', 'pcs', 'bar-pomegranate-juice'),
@@ -98,7 +98,7 @@ export const LOYVERSE_INGREDIENTS: { match: RegExp; ingredientId: string | null;
   { match: /^whippingcream|^cream$/, ingredientId: 'whipping-cream', factor: 1000 },
   { match: /^icecream/, ingredientId: 'ice-cream', factor: 1000 },
   { match: /^tonic/, ingredientId: 'tonic-water', factor: 100 },
-  { match: /^complimentary/, ingredientId: 'complimentary-sparkling', factor: 1000 },
+  { match: /^complimentary/, ingredientId: 'complimentary-sparkling', factor: 500 },
   { match: /^hibiscus(flowers?)?(dry)?$/, ingredientId: 'hibiscus-flowers', factor: 100 },
   { match: /^sugarsyrup/, ingredientId: 'syrup-sugar', factor: 1000 },
   { match: /^grapefruit/, ingredientId: 'syrup-grapefruit', factor: 1000 },
